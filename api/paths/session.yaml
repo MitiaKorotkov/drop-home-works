@@ -1,0 +1,55 @@
+get:
+  operationId: getSession
+  summary: Узнать, кто я
+  tags: [auth]
+  responses:
+    '200':
+      description: Текущий пользователь
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Me.yaml'
+    '401':
+      description: Вход не выполнен
+
+post:
+  operationId: login
+  summary: Залогиниться
+  tags: [auth]
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/LoginRequest.yaml'
+  responses:
+    '200':
+      description: Текущий пользователь
+      headers:
+        Set-Cookie:
+          $ref: '../components/headers/SessionCookie.yaml'
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Me.yaml'
+    '400':
+      description: Некорректное тело запроса
+    '401':
+      description: Вход не выполнен
+    '429':
+      description: Слишком много попыток входа
+
+delete:
+  operationId: logout
+  summary: Разлогиниться
+  tags: [auth]
+  security: []
+  responses:
+    '204':
+      description: Сессия завершена
+      headers:
+        Set-Cookie:
+          $ref: '../components/headers/SessionCookie.yaml'
+    '403':
+      description: Запрос с чужого сайта отклонён

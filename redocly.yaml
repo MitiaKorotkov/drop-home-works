@@ -1,0 +1,8 @@
+apis:
+  homeworksapi:
+    root: ./api/openapi.yaml
+
+extends: - recommended
+
+rules:
+  info-license: off

@@ -1,0 +1,2 @@
+description: Cookie сессии
+schema: { type: string }

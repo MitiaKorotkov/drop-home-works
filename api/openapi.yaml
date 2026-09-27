@@ -1,0 +1,36 @@
+openapi: 3.2.0
+
+info:
+  title: Homeworks API
+  version: 1.0.0
+
+servers:
+  - url: /api
+
+paths:
+  /session:
+    $ref: './paths/session.yaml'
+  # Ученики
+  /assignments:
+    $ref: './paths/assignments.yaml'
+  /assignments/{assignmentId}:
+    $ref: './paths/assignments.assignmentId.yaml'
+  # Учитель
+  /classes:
+    $ref: './paths/classes.yaml'
+  /classes/{classId}:
+    $ref: './paths/classes.classId.yaml'
+  /classes/{classId}/{userId}:
+    $ref: './paths/classes.classId.userId.yaml'
+
+components:
+  securitySchemes:
+    sessionCookie:
+      $ref: './components/securitySchemes/sessionCookie.yaml'
+
+security:
+  - sessionCookie: []
+
+tags:
+  - name: auth
+    description: Аутентификация

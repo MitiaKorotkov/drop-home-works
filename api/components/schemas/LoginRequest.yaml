@@ -1,0 +1,11 @@
+type: object
+properties:
+  login:
+    type: string
+    maxLength: 32
+  password:
+    type: string
+    maxLength: 128
+required:
+  - login
+  - password
