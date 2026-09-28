@@ -1,0 +1,37 @@
+parameters:
+  - $ref: ../components/parameters/assignmentId.yaml
+
+post:
+  operationId: uploadAssignmentFile
+  summary: Загрузить файл задания
+  description: Принимает файл любого типа до 50 МБ в поле file.
+  tags: [assignments]
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          type: object
+          properties:
+            file:
+              type: string
+              format: binary
+          required:
+            - file
+  responses:
+    '201':
+      description: Файл загружен
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/FileInfo.yaml
+    '400':
+      description: Поле file отсутствует
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '404':
+      description: Задание не найдено
+    '413':
+      description: Файл больше 50 МБ

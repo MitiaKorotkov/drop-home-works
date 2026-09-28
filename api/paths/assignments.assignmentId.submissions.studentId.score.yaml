@@ -1,0 +1,31 @@
+parameters:
+  - $ref: ../components/parameters/assignmentId.yaml
+  - $ref: ../components/parameters/studentId.yaml
+
+put:
+  operationId: setSubmissionScore
+  summary: Выставить балл
+  description: Выставляет или исправляет балл, работа становится проверенной. Балл не больше количества задач в задании.
+  tags: [review]
+  requestBody:
+    required: true
+    description: Балл
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/SetScore.yaml
+  responses:
+    '200':
+      description: Работа с выставленным баллом
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/StudentSubmission.yaml
+    '400':
+      description: Некорректное тело запроса или балл больше количества задач
+    '401': 
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '404':
+      description: Задание не найдено или работа не сдана

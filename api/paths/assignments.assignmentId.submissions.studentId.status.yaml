@@ -1,0 +1,33 @@
+parameters:
+  - $ref: ../components/parameters/assignmentId.yaml
+  - $ref: ../components/parameters/studentId.yaml
+
+put:
+  operationId: setSubmissionStatus
+  summary: Взять работу на проверку или снять отметку
+  description: Статус in_review отмечает работу как «На проверке», после этого ученик не может её заменить. Статус submitted снимает отметку. У проверенной работы статус не меняется.
+  tags: [review]
+  requestBody:
+    required: true
+    description: Новый статус работы
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/SetReviewStatus.yaml
+  responses:
+    '200':
+      description: Работа с новым статусом
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/StudentSubmission.yaml
+    '400':
+      description: Некорректное тело запроса
+    '401': 
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '404':
+      description: Задание не найдено или работа не сдана
+    '409':
+      description: Работа уже проверена

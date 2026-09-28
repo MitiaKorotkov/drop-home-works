@@ -1,0 +1,31 @@
+type: object
+properties:
+  id:
+    type: integer
+    format: int64
+  title:
+    type: string
+  description:
+    type: string
+  taskCount:
+    type: integer
+    format: int32
+  createdAt:
+    type: string
+    format: date-time
+  files:
+    type: array
+    items:
+      $ref: ./FileInfo.yaml
+  classes:
+    type: array
+    items:
+      $ref: ./ClassDeadline.yaml
+required:
+  - id
+  - title
+  - description
+  - taskCount
+  - createdAt
+  - files
+  - classes

@@ -1,0 +1,23 @@
+type: object
+properties:
+  studentId:
+    type: integer
+    format: int64
+  firstName:
+    type: string
+  lastName:
+    type: string
+  state:
+    $ref: ./SubmissionState.yaml
+  score:
+    type: integer
+    format: int32
+    minimum: 0
+  submittedAt:
+    type: string
+    format: date-time
+required:
+  - studentId
+  - firstName
+  - lastName
+  - state

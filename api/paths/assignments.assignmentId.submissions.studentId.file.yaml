@@ -1,0 +1,25 @@
+parameters:
+  - $ref: ../components/parameters/assignmentId.yaml
+  - $ref: ../components/parameters/studentId.yaml
+
+get:
+  operationId: downloadSubmission
+  summary: Скачать работу ученика
+  tags: [review]
+  responses:
+    '200':
+      description: Присланный PDF
+      headers:
+        Content-Disposition:
+          $ref: ../components/headers/ContentDisposition.yaml
+      content:
+        application/pdf:
+          schema:
+            type: string
+            format: binary
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '404':
+      description: Задание не найдено или ученик не сдал работу

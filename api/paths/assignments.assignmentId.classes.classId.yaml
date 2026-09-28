@@ -1,0 +1,27 @@
+parameters:
+  - $ref: ../components/parameters/assignmentId.yaml
+  - $ref: ../components/parameters/classId.yaml
+
+put:
+  operationId: setClassDeadline
+  summary: Выдать задание классу или перенести дедлайн
+  description: Выдаёт задание классу с указанным дедлайном, а если оно уже выдано, переносит дедлайн. Снять задание с класса нельзя.
+  tags: [assignments]
+  requestBody:
+    required: true
+    description: Дедлайн для класса
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/SetDeadline.yaml
+  responses:
+    '204':
+      description: Дедлайн установлен
+    '400':
+      description: Некорректное тело запроса или класс указан дважды
+    '401': 
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '404':
+      description: Задание или класс не найдены

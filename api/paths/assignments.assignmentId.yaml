@@ -1,0 +1,62 @@
+parameters:
+  - $ref: ../components/parameters/assignmentId.yaml
+
+get:
+  operationId: getAssignment
+  summary: Задание
+  tags: [assignments]
+  responses:
+    '200':
+      description: Задание
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/Assignment.yaml
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '404':
+      description: Задание не найдено
+
+patch:
+  operationId: updateAssignment
+  summary: Изменить задание
+  description: Меняются только переданные поля. Количество задач и список классов здесь не меняются.
+  tags: [assignments]
+  requestBody:
+    required: true
+    content: 
+      application/json:
+        schema:
+          $ref: ../components/schemas/AssignmentUpdate.yaml
+  responses:
+    '200':
+      description: Обновлённое задание
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/Assignment.yaml
+    '400':
+      description: Некорректное тело запроса
+    '401': 
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '404':
+      description: Задание не найдено
+
+delete:
+  operationId: deleteAssignment
+  summary: Удалить задание
+  description: Удаляет задание вместе со всеми сдачами и файлами. Перед вызовом фронтенд просит подтверждение.
+  tags: [assignments]
+  responses:
+    '204':
+      description: Задание удалено
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '404':
+      description: Задание не найдено

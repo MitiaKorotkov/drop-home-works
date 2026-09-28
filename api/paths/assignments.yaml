@@ -1,0 +1,42 @@
+get:
+  operationId: listAssignments
+  summary: Список заданий
+  tags: [assignments]
+  responses:
+    '200':
+      description: Все задания с их файлами и классами, которым они выданы
+      content:
+        application/json:
+          schema:
+            type: array
+            items: 
+              $ref: ../components/schemas/Assignment.yaml
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+
+post:
+  operationId: createAssignment
+  summary: Создать задание
+  description: Создаёт задание и, если переданы классы, выдаёт его им. Количество задач потом изменить нельзя. Файлы загружаются отдельными запросами.
+  tags: [assignments]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/AssignmentCreate.yaml
+  responses:
+    '201':
+      description: Задание создано
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/Assignment.yaml
+    '400':
+      description: Некорректное тело запроса или класс не существует или класс указан дважды
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю

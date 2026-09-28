@@ -42,6 +42,14 @@ paths:
     $ref: ./paths/assignments.assignmentId.files.fileId.yaml
   /assignments/{assignmentId}/classes/{classId}:
     $ref: ./paths/assignments.assignmentId.classes.classId.yaml
+  /assignments/{assignmentId}/classes/{classId}/submissions:
+    $ref: ./paths/assignments.assignmentId.classes.classId.submissions.yaml
+  /assignments/{assignmentId}/submissions/{studentId}/file:
+    $ref: ./paths/assignments.assignmentId.submissions.studentId.file.yaml
+  /assignments/{assignmentId}/submissions/{studentId}/status:
+    $ref: ./paths/assignments.assignmentId.submissions.studentId.status.yaml
+  /assignments/{assignmentId}/submissions/{studentId}/score:
+    $ref: ./paths/assignments.assignmentId.submissions.studentId.score.yaml
 
 components:
   securitySchemes:
@@ -60,3 +68,7 @@ tags:
     description: Классы
   - name: students
     description: Ученики
+  - name: assignments
+    description: Задания
+  - name: review
+    description: Проверка

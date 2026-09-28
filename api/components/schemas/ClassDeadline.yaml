@@ -1,0 +1,11 @@
+type: object
+properties:
+  classId:
+    type: integer
+    format: int64
+  deadline:
+    type: string
+    format: date-time
+required:
+  - classId
+  - deadline

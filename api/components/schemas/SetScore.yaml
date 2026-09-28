@@ -1,0 +1,8 @@
+type: object
+properties:
+  score:
+    type: integer
+    format: int32
+    minimum: 0
+required:
+  - score

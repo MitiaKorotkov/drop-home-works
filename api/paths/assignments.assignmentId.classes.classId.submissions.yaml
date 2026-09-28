@@ -1,0 +1,24 @@
+parameters:
+  - $ref: ../components/parameters/assignmentId.yaml
+  - $ref: ../components/parameters/classId.yaml
+
+get:
+  operationId: listClassSubmissions
+  summary: Работы класса по заданию
+  description: Все ученики класса с состоянием сдачи по заданию, включая несдавших. Отсортированы по фамилии и имени.
+  tags: [review]
+  responses:
+    '200':
+      description: Ученики класса с состоянием сдачи
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: ../components/schemas/StudentSubmission.yaml
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '404':
+      description: Задание не найдено или не выдано классу
