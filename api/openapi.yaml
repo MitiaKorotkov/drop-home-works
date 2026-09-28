@@ -9,27 +9,44 @@ servers:
 
 paths:
   /session:
-    $ref: './paths/session.yaml'
+    $ref: ./paths/session.yaml
+  
   /me/assignments:
-    $ref: './paths/me/assignments.yaml'
+    $ref: ./paths/me/assignments.yaml
   /me/assignments/{assignmentId}:
-    $ref: './paths/me/assignments.assignmentId.yaml'
+    $ref: ./paths/me/assignments.assignmentId.yaml
   /me/assignments/{assignmentId}/files/{fileId}:
-    $ref: './paths/me/assignments.assignmentId.files.fileId.yaml'
+    $ref: ./paths/me/assignments.assignmentId.files.fileId.yaml
   /me/assignments/{assignmentId}/submission:
-    $ref: './paths/me/assignments.assignmentId.submission.yaml'
-  # Учитель
+    $ref: ./paths/me/assignments.assignmentId.submission.yaml
+
   /classes:
-    $ref: './paths/classes.yaml'
-  /classes/{classId}:
-    $ref: './paths/classes.classId.yaml'
-  /classes/{classId}/{userId}:
-    $ref: './paths/classes.classId.userId.yaml'
+    $ref: ./paths/classes.yaml
+  /classes/{classId}/students:
+    $ref: ./paths/classes.classId.students.yaml
+
+  /students:
+    $ref: ./paths/students.yaml
+  /students/{studentId}:
+    $ref: ./paths/students.studentId.yaml
+  /students/{studentId}/password:
+    $ref: ./paths/students.studentId.password.yaml
+
+  /assignments:
+    $ref: ./paths/assignments.yaml
+  /assignments/{assignmentId}:
+    $ref: ./paths/assignments.assignmentId.yaml
+  /assignments/{assignmentId}/files:
+    $ref: ./paths/assignments.assignmentId.files.yaml
+  /assignments/{assignmentId}/files/{fileId}:
+    $ref: ./paths/assignments.assignmentId.files.fileId.yaml
+  /assignments/{assignmentId}/classes/{classId}:
+    $ref: ./paths/assignments.assignmentId.classes.classId.yaml
 
 components:
   securitySchemes:
     sessionCookie:
-      $ref: './components/securitySchemes/sessionCookie.yaml'
+      $ref: ./components/securitySchemes/sessionCookie.yaml
 
 security:
   - sessionCookie: []
@@ -39,4 +56,7 @@ tags:
     description: Аутентификация
   - name: student
     description: Ученик
-
+  - name: classes
+    description: Классы
+  - name: students
+    description: Ученики

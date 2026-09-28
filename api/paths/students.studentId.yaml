@@ -1,0 +1,44 @@
+parameters:
+  - $ref: ../components/parameters/studentId.yaml
+
+patch:
+  operationId: updateStudent
+  summary: Изменить ученика
+  description: Меняются только переданные поля. Смена classId переводит ученика в другой класс, его сдачи сохраняются.
+  tags: [students]
+  requestBody:
+    required: true
+    content: 
+      application/json:
+        schema:
+          $ref: ../components/schemas/StudentUpdate.yaml  
+  responses:
+    '200':
+      description: Обновлённый ученик
+      content: 
+        application/json:
+          schema:
+            $ref: ../components/schemas/Student.yaml
+    '400':
+      description: Некорректное тело запроса или класс не существует
+    '401': 
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '404':
+      description: Ученик не найден
+
+delete:
+  operationId: deleteStudent
+  summary: Удалить ученика
+  description: Удаляет ученика вместе с его сдачами и файлами. Перед вызовом фронтенд просит подтверждение.
+  tags: [students]
+  responses:
+    '204':
+      description: Ученик удалён
+    '401': 
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '404':
+      description: Ученик не найден

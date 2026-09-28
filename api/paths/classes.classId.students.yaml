@@ -1,0 +1,22 @@
+parameters:
+  - $ref: ../components/parameters/classId.yaml
+
+get:
+  operationId: listClassStudents
+  summary: Ученики класса
+  tags: [classes]
+  responses:
+    '200':
+      description: Список учеников, отсортированный по фамилии и имени
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: ../components/schemas/Student.yaml
+    '401': 
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '404':
+      description: Класс не найден

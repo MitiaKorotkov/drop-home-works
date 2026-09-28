@@ -1,0 +1,26 @@
+post:
+  operationId: createStudent
+  summary: Добавить ученика
+  description: Создаёт учётную запись ученика в указанном классе. Логин сохраняется в нижнем регистре.
+  tags: [students]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/StudentCreate.yaml
+  responses:
+    '201':
+      description: Ученик создан
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/Student.yaml
+    '400':
+      description: Некорректное тело запроса или класс не существует
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '409':
+      description: Логин занят

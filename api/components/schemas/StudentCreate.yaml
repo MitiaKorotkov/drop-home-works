@@ -1,0 +1,26 @@
+type: object
+properties:
+  classId:
+    type: integer
+    format: int64
+  firstName:
+    type: string
+    minLength: 1
+    maxLength: 30 
+  lastName:
+    type: string
+    minLength: 1
+    maxLength: 30 
+  login:
+    type: string
+    pattern: '^[A-Za-z0-9._-]{3,32}$'
+  password:
+    type: string
+    minLength: 8
+    maxLength: 128
+required:
+  - classId
+  - firstName
+  - lastName
+  - login
+  - password

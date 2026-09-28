@@ -1,0 +1,43 @@
+get:
+  operationId: listClasses
+  summary: Список классов
+  tags: [classes]
+  responses:
+    '200':
+      description: Список классов
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: ../components/schemas/Class.yaml
+    '401': 
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+
+post:
+  operationId: createClass
+  summary: Создать класс
+  tags: [classes]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/ClassCreate.yaml
+  responses:
+    '201':
+      description: Класс создан
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/Class.yaml
+    '400':
+      description: Некорректное тело запроса
+    '401': 
+      description: Вход не выполнен
+    '403':
+      description: Доступно только учителю
+    '409':
+      description: Название занято
