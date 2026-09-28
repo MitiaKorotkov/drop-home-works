@@ -1,0 +1,29 @@
+type: object
+properties:
+  id:
+    type: integer
+    format: int64
+  title:
+    type: string
+  deadline:
+    type: string
+    format: date-time
+  taskCount:
+    type: integer
+    format: int32
+    minimum: 1
+  state:
+    $ref: './SubmissionState.yaml'
+  score:
+    type: integer
+    format: int32
+    minimum: 0
+  submittedAt:
+    type: string
+    format: date-time
+required:
+  - id
+  - title
+  - deadline
+  - taskCount
+  - state

@@ -1,0 +1,21 @@
+parameters:
+  - $ref: ../../components/parameters/assignmentId.yaml
+
+get:
+  operationId: getMyAssignment
+  summary: Задание
+  description: Задание с описанием и списком приложенных файлов.
+  tags: [student]
+  responses:
+    '200':
+      description: Задание
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/StudentAssignmentDetails.yaml
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только ученикам
+    '404':
+      description: Задание не найдено или не выдано классу ученика

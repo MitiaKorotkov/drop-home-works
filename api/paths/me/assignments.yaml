@@ -1,0 +1,18 @@
+get:
+  operationId: listMyAssignments
+  summary: Мои задания
+  description: Задания, выданные классу ученика, с состоянием сдачи и баллом. Отсортированы по дедлайну.
+  tags: [student]
+  responses:
+    '200':
+      description: Список заданий
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../../components/schemas/StudentAssignment.yaml'
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только ученикам

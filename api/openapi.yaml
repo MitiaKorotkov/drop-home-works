@@ -10,11 +10,14 @@ servers:
 paths:
   /session:
     $ref: './paths/session.yaml'
-  # Ученики
-  /assignments:
-    $ref: './paths/assignments.yaml'
-  /assignments/{assignmentId}:
-    $ref: './paths/assignments.assignmentId.yaml'
+  /me/assignments:
+    $ref: './paths/me/assignments.yaml'
+  /me/assignments/{assignmentId}:
+    $ref: './paths/me/assignments.assignmentId.yaml'
+  /me/assignments/{assignmentId}/files/{fileId}:
+    $ref: './paths/me/assignments.assignmentId.files.fileId.yaml'
+  /me/assignments/{assignmentId}/submission:
+    $ref: './paths/me/assignments.assignmentId.submission.yaml'
   # Учитель
   /classes:
     $ref: './paths/classes.yaml'
@@ -34,3 +37,6 @@ security:
 tags:
   - name: auth
     description: Аутентификация
+  - name: student
+    description: Ученик
+

@@ -1,0 +1,2 @@
+description: Файл отдаётся как вложение (attachment). Исходное имя файла передаётся в параметре filename* в кодировке UTF-8.
+schema: { type: string }

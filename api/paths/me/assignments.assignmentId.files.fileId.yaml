@@ -1,0 +1,25 @@
+parameters:
+  - $ref: ../../components/parameters/assignmentId.yaml
+  - $ref: ../../components/parameters/fileId.yaml
+
+get:
+  operationId: downloadMyAssignmentFile
+  summary: Скачать файл задания
+  tags: [student]
+  responses:
+    '200':
+      description: Файл задания
+      headers:
+        Content-Disposition:
+          $ref: ../../components/headers/ContentDisposition.yaml
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только ученикам
+    '404':
+      description: адание или файл не найдены

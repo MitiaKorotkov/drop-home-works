@@ -1,0 +1,13 @@
+allOf:
+  - $ref: './StudentAssignment.yaml'
+  - type: object
+    properties:
+      description:
+        type: string
+      files:
+        type: array
+        items:
+          $ref: './FileInfo.yaml'
+    required:
+      - description
+      - files

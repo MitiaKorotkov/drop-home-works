@@ -1,0 +1,61 @@
+parameters:
+  - $ref: ../../components/parameters/assignmentId.yaml
+
+get:
+  operationId: downloadMySubmission
+  summary: Скачать свою работу
+  tags: [student]
+  responses:
+    '200':
+      description: Отправленный PDF
+      headers:
+        Content-Disposition:
+          $ref: ../../components/headers/ContentDisposition.yaml
+      content:
+        application/pdf:
+          schema:
+            type: string
+            format: binary
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только ученикам
+    '404':
+      description: Задание не найдено или работа ещё не сдана
+put:
+  operationId: uploadMySubmission
+  summary: Сдать работу
+  description: Принимает PDF до 20 МБ. Повторная загрузка заменяет прежний файл. Сдать можно до дедлайна и пока учитель не взял работу на проверку. Работа сдана в срок, если сервер начал принимать файл до дедлайна.
+  tags: [student]
+  requestBody:
+    required: true
+    description: PDF-файл в поле file
+    content:
+      multipart/form-data:
+        schema:
+          type: object
+          properties:
+            file:
+              type: string
+              format: binary
+          required:
+            - file
+  responses:
+    '200':
+      description: Работа принята, в ответе обновлённое задание
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/StudentAssignment.yaml
+    '400':
+      description: Файл не PDF или поле file отсутствует
+    '401':
+      description: Вход не выполнен
+    '403':
+      description: Доступно только ученикам
+    '404':
+      description: Задание не найдено или не выдано классу ученика
+    '409':
+      description: 'Сдать нельзя: дедлайн прошёл или работа уже на проверке'
+    '413':
+      description: Файл больше 20 МБ

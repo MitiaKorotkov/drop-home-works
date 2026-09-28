@@ -1,0 +1,7 @@
+type: string
+enum:
+  - not_submitted
+  - submitted
+  - in_review
+  - reviewed
+  - overdue
