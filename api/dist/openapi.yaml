@@ -1,0 +1,1247 @@
+openapi: 3.2.0
+info:
+  title: Homeworks API
+  version: 1.0.0
+servers:
+  - url: /api
+security:
+  - sessionCookie: []
+tags:
+  - name: auth
+    description: Аутентификация
+  - name: student
+    description: Ученик
+  - name: classes
+    description: Классы
+  - name: students
+    description: Ученики
+  - name: assignments
+    description: Задания
+  - name: review
+    description: Проверка
+paths:
+  /session:
+    get:
+      operationId: getSession
+      summary: Узнать, кто я
+      tags:
+        - auth
+      responses:
+        '200':
+          description: Текущий пользователь
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+    post:
+      operationId: login
+      summary: Войти
+      tags:
+        - auth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Текущий пользователь
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SessionCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Некорректное тело запроса
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Неверный логин или пароль
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+          description: Слишком много попыток входа
+    delete:
+      operationId: logout
+      summary: Выйти
+      tags:
+        - auth
+      security: []
+      responses:
+        '204':
+          description: Сессия завершена
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SessionCookie'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Запрос с чужого сайта отклонён
+  /me/assignments:
+    get:
+      operationId: listMyAssignments
+      summary: Мои задания
+      description: Задания, выданные классу ученика, с состоянием сдачи и баллом. Отсортированы по дедлайну.
+      tags:
+        - student
+      responses:
+        '200':
+          description: Список заданий
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StudentAssignment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только ученикам
+  /me/assignments/{assignmentId}:
+    parameters:
+      - $ref: '#/components/parameters/assignmentId'
+    get:
+      operationId: getMyAssignment
+      summary: Задание
+      description: Задание с описанием и списком приложенных файлов.
+      tags:
+        - student
+      responses:
+        '200':
+          description: Задание
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentAssignmentDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только ученикам
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание не найдено или не выдано классу ученика
+  /me/assignments/{assignmentId}/files/{fileId}:
+    parameters:
+      - $ref: '#/components/parameters/assignmentId'
+      - $ref: '#/components/parameters/fileId'
+    get:
+      operationId: downloadMyAssignmentFile
+      summary: Скачать файл задания
+      tags:
+        - student
+      responses:
+        '200':
+          description: Файл задания
+          headers:
+            Content-Disposition:
+              $ref: '#/components/headers/ContentDisposition'
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только ученикам
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание или файл не найдены
+  /me/assignments/{assignmentId}/submission:
+    parameters:
+      - $ref: '#/components/parameters/assignmentId'
+    get:
+      operationId: downloadMySubmission
+      summary: Скачать свою работу
+      tags:
+        - student
+      responses:
+        '200':
+          description: Отправленный PDF
+          headers:
+            Content-Disposition:
+              $ref: '#/components/headers/ContentDisposition'
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только ученикам
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание не найдено или работа ещё не сдана
+    put:
+      operationId: uploadMySubmission
+      summary: Сдать работу
+      description: Принимает PDF до 20 МБ. Повторная загрузка заменяет прежний файл. Сдать можно до дедлайна и пока учитель не взял работу на проверку. Работа сдана в срок, если сервер начал принимать файл до дедлайна.
+      tags:
+        - student
+      requestBody:
+        required: true
+        description: PDF-файл в поле file
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+                - file
+      responses:
+        '200':
+          description: Работа принята, в ответе обновлённое задание
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentAssignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Файл не PDF или поле file отсутствует
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только ученикам
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание не найдено или не выдано классу ученика
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: 'Сдать нельзя: дедлайн прошёл или работа уже на проверке'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+          description: Файл больше 20 МБ
+  /classes:
+    get:
+      operationId: listClasses
+      summary: Список классов
+      tags:
+        - classes
+      responses:
+        '200':
+          description: Список классов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Class'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+    post:
+      operationId: createClass
+      summary: Создать класс
+      tags:
+        - classes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassCreate'
+      responses:
+        '201':
+          description: Класс создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Class'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Некорректное тело запроса
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: Название занято
+  /classes/{classId}/students:
+    parameters:
+      - $ref: '#/components/parameters/classId'
+    get:
+      operationId: listClassStudents
+      summary: Ученики класса
+      tags:
+        - classes
+      responses:
+        '200':
+          description: Список учеников, отсортированный по фамилии и имени
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Student'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Класс не найден
+  /students:
+    post:
+      operationId: createStudent
+      summary: Добавить ученика
+      description: Создаёт учётную запись ученика в указанном классе. Логин сохраняется в нижнем регистре.
+      tags:
+        - students
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentCreate'
+      responses:
+        '201':
+          description: Ученик создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Некорректное тело запроса или класс не существует
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: Логин занят
+  /students/{studentId}:
+    parameters:
+      - $ref: '#/components/parameters/studentId'
+    patch:
+      operationId: updateStudent
+      summary: Изменить ученика
+      description: Меняются только переданные поля. Смена classId переводит ученика в другой класс, его сдачи сохраняются.
+      tags:
+        - students
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentUpdate'
+      responses:
+        '200':
+          description: Обновлённый ученик
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Некорректное тело запроса или класс не существует
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Ученик не найден
+    delete:
+      operationId: deleteStudent
+      summary: Удалить ученика
+      description: Удаляет ученика вместе с его сдачами и файлами. Перед вызовом фронтенд просит подтверждение.
+      tags:
+        - students
+      responses:
+        '204':
+          description: Ученик удалён
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Ученик не найден
+  /students/{studentId}/password:
+    parameters:
+      - $ref: '#/components/parameters/studentId'
+    put:
+      operationId: setStudentPassword
+      summary: Задать новый пароль
+      description: Задаёт ученику новый пароль и завершает все его сессии.
+      tags:
+        - students
+      requestBody:
+        required: true
+        description: Новый пароль
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPassword'
+      responses:
+        '204':
+          description: Пароль изменён
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Пароль не подходит по длине
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Ученик не найден
+  /assignments:
+    get:
+      operationId: listAssignments
+      summary: Список заданий
+      tags:
+        - assignments
+      responses:
+        '200':
+          description: Все задания с их файлами и классами, которым они выданы
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Assignment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+    post:
+      operationId: createAssignment
+      summary: Создать задание
+      description: Создаёт задание и, если переданы классы, выдаёт его им. Количество задач потом изменить нельзя. Файлы загружаются отдельными запросами.
+      tags:
+        - assignments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentCreate'
+      responses:
+        '201':
+          description: Задание создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Некорректное тело запроса или класс не существует или класс указан дважды
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+  /assignments/{assignmentId}:
+    parameters:
+      - $ref: '#/components/parameters/assignmentId'
+    get:
+      operationId: getAssignment
+      summary: Задание
+      tags:
+        - assignments
+      responses:
+        '200':
+          description: Задание
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание не найдено
+    patch:
+      operationId: updateAssignment
+      summary: Изменить задание
+      description: Меняются только переданные поля. Количество задач и список классов здесь не меняются.
+      tags:
+        - assignments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentUpdate'
+      responses:
+        '200':
+          description: Обновлённое задание
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Некорректное тело запроса
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание не найдено
+    delete:
+      operationId: deleteAssignment
+      summary: Удалить задание
+      description: Удаляет задание вместе со всеми сдачами и файлами. Перед вызовом фронтенд просит подтверждение.
+      tags:
+        - assignments
+      responses:
+        '204':
+          description: Задание удалено
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание не найдено
+  /assignments/{assignmentId}/files:
+    parameters:
+      - $ref: '#/components/parameters/assignmentId'
+    post:
+      operationId: uploadAssignmentFile
+      summary: Загрузить файл задания
+      description: Принимает файл любого типа до 50 МБ в поле file.
+      tags:
+        - assignments
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+                - file
+      responses:
+        '201':
+          description: Файл загружен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Поле file отсутствует
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание не найдено
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+          description: Файл больше 50 МБ
+  /assignments/{assignmentId}/files/{fileId}:
+    parameters:
+      - $ref: '#/components/parameters/assignmentId'
+      - $ref: '#/components/parameters/fileId'
+    get:
+      operationId: downloadAssignmentFile
+      summary: Скачать файл задания
+      tags:
+        - assignments
+      responses:
+        '200':
+          description: Файл задания
+          headers:
+            Content-Disposition:
+              $ref: '#/components/headers/ContentDisposition'
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание или файл не найдены
+    delete:
+      operationId: deleteAssignmentFile
+      summary: Удалить файл задания
+      tags:
+        - assignments
+      responses:
+        '204':
+          description: Файл удалён
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание или файл не найдены
+  /assignments/{assignmentId}/classes/{classId}:
+    parameters:
+      - $ref: '#/components/parameters/assignmentId'
+      - $ref: '#/components/parameters/classId'
+    put:
+      operationId: setClassDeadline
+      summary: Выдать задание классу или перенести дедлайн
+      description: Выдаёт задание классу с указанным дедлайном, а если оно уже выдано, переносит дедлайн. Снять задание с класса нельзя.
+      tags:
+        - assignments
+      requestBody:
+        required: true
+        description: Дедлайн для класса
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetDeadline'
+      responses:
+        '204':
+          description: Дедлайн установлен
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Некорректное тело запроса или класс указан дважды
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание или класс не найдены
+  /assignments/{assignmentId}/classes/{classId}/submissions:
+    parameters:
+      - $ref: '#/components/parameters/assignmentId'
+      - $ref: '#/components/parameters/classId'
+    get:
+      operationId: listClassSubmissions
+      summary: Работы класса по заданию
+      description: Все ученики класса с состоянием сдачи по заданию, включая несдавших. Отсортированы по фамилии и имени.
+      tags:
+        - review
+      responses:
+        '200':
+          description: Ученики класса с состоянием сдачи
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StudentSubmission'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание не найдено или не выдано классу
+  /assignments/{assignmentId}/submissions/{studentId}/file:
+    parameters:
+      - $ref: '#/components/parameters/assignmentId'
+      - $ref: '#/components/parameters/studentId'
+    get:
+      operationId: downloadSubmission
+      summary: Скачать работу ученика
+      tags:
+        - review
+      responses:
+        '200':
+          description: Присланный PDF
+          headers:
+            Content-Disposition:
+              $ref: '#/components/headers/ContentDisposition'
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание не найдено или ученик не сдал работу
+  /assignments/{assignmentId}/submissions/{studentId}/status:
+    parameters:
+      - $ref: '#/components/parameters/assignmentId'
+      - $ref: '#/components/parameters/studentId'
+    put:
+      operationId: setSubmissionStatus
+      summary: Взять работу на проверку или снять отметку
+      description: Статус in_review отмечает работу как «На проверке», после этого ученик не может её заменить. Статус submitted снимает отметку. У проверенной работы статус не меняется.
+      tags:
+        - review
+      requestBody:
+        required: true
+        description: Новый статус работы
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetReviewStatus'
+      responses:
+        '200':
+          description: Работа с новым статусом
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentSubmission'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Некорректное тело запроса
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание не найдено или работа не сдана
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: Работа уже проверена
+  /assignments/{assignmentId}/submissions/{studentId}/score:
+    parameters:
+      - $ref: '#/components/parameters/assignmentId'
+      - $ref: '#/components/parameters/studentId'
+    put:
+      operationId: setSubmissionScore
+      summary: Выставить балл
+      description: Выставляет или исправляет балл, работа становится проверенной. Балл не больше количества задач в задании.
+      tags:
+        - review
+      requestBody:
+        required: true
+        description: Балл
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetScore'
+      responses:
+        '200':
+          description: Работа с выставленным баллом
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentSubmission'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Некорректное тело запроса или балл больше количества задач
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Вход не выполнен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Доступно только учителю
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Задание не найдено или работа не сдана
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+  schemas:
+    UserRole:
+      type: string
+      enum:
+        - student
+        - teacher
+    Class:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+      required:
+        - id
+        - name
+    Me:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        role:
+          $ref: '#/components/schemas/UserRole'
+        firstName:
+          type: string
+        lastName:
+          type: string
+        class:
+          $ref: '#/components/schemas/Class'
+      required:
+        - id
+        - firstName
+        - lastName
+        - role
+    ErrorCode:
+      type: string
+      enum:
+        - validation_failed
+        - class_not_found
+        - duplicate_class
+        - not_pdf
+        - score_too_high
+        - unauthorized
+        - invalid_credentials
+        - forbidden
+        - cross_origin
+        - not_found
+        - login_taken
+        - class_name_taken
+        - deadline_passed
+        - submission_locked
+        - already_reviewed
+        - file_too_large
+        - too_many_attempts
+        - internal_error
+    Problem:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+      required:
+        - title
+        - status
+        - code
+    LoginRequest:
+      type: object
+      properties:
+        login:
+          type: string
+          maxLength: 32
+        password:
+          type: string
+          maxLength: 128
+      required:
+        - login
+        - password
+    SubmissionState:
+      type: string
+      enum:
+        - not_submitted
+        - submitted
+        - in_review
+        - reviewed
+        - overdue
+    StudentAssignment:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        taskCount:
+          type: integer
+          format: int32
+          minimum: 1
+        state:
+          $ref: '#/components/schemas/SubmissionState'
+        score:
+          type: integer
+          format: int32
+          minimum: 0
+        submittedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - deadline
+        - taskCount
+        - state
+    FileInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        size:
+          type: integer
+          format: int64
+      required:
+        - id
+        - name
+        - size
+    StudentAssignmentDetails:
+      allOf:
+        - $ref: '#/components/schemas/StudentAssignment'
+        - type: object
+          properties:
+            description:
+              type: string
+            files:
+              type: array
+              items:
+                $ref: '#/components/schemas/FileInfo'
+          required:
+            - description
+            - files
+    ClassCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 30
+      required:
+        - name
+    Student:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        firstName:
+          type: string
+        lastName:
+          type: string
+        login:
+          type: string
+        classId:
+          type: integer
+          format: int64
+      required:
+        - id
+        - firstName
+        - lastName
+        - login
+        - classId
+    StudentCreate:
+      type: object
+      properties:
+        classId:
+          type: integer
+          format: int64
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 30
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 30
+        login:
+          type: string
+          pattern: ^[A-Za-z0-9._-]{3,32}$
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+      required:
+        - classId
+        - firstName
+        - lastName
+        - login
+        - password
+    StudentUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 30
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 30
+        classId:
+          type: integer
+          format: int64
+      minProperties: 1
+    SetPassword:
+      type: object
+      properties:
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+      required:
+        - password
+    ClassDeadline:
+      type: object
+      properties:
+        classId:
+          type: integer
+          format: int64
+        deadline:
+          type: string
+          format: date-time
+      required:
+        - classId
+        - deadline
+    Assignment:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        description:
+          type: string
+        taskCount:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileInfo'
+        classes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClassDeadline'
+      required:
+        - id
+        - title
+        - description
+        - taskCount
+        - createdAt
+        - files
+        - classes
+    AssignmentCreate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        taskCount:
+          type: integer
+          format: int32
+          minimum: 1
+        description:
+          type: string
+        classes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClassDeadline'
+      required:
+        - title
+        - taskCount
+    AssignmentUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+      minProperties: 1
+    SetDeadline:
+      type: object
+      properties:
+        deadline:
+          type: string
+          format: date-time
+      required:
+        - deadline
+    StudentSubmission:
+      type: object
+      properties:
+        studentId:
+          type: integer
+          format: int64
+        firstName:
+          type: string
+        lastName:
+          type: string
+        state:
+          $ref: '#/components/schemas/SubmissionState'
+        score:
+          type: integer
+          format: int32
+          minimum: 0
+        submittedAt:
+          type: string
+          format: date-time
+      required:
+        - studentId
+        - firstName
+        - lastName
+        - state
+    SetReviewStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - submitted
+            - in_review
+      required:
+        - status
+    SetScore:
+      type: object
+      properties:
+        score:
+          type: integer
+          format: int32
+          minimum: 0
+      required:
+        - score
+  responses:
+    Unauthorized:
+      description: Вход не выполнен (коды unauthorized, invalid_credentials)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    BadRequest:
+      description: Некорректный запрос (коды validation_failed, class_not_found, duplicate_class, not_pdf, score_too_high)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    TooManyRequests:
+      description: Слишком много попыток (код too_many_attempts)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: Доступ запрещён (коды forbidden, cross_origin)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Не найдено (код not_found)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Действие противоречит текущему состоянию (коды login_taken, class_name_taken, deadline_passed, submission_locked, already_reviewed)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    PayloadTooLarge:
+      description: Файл слишком большой (код file_too_large)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  headers:
+    SessionCookie:
+      description: Cookie сессии
+      schema:
+        type: string
+    ContentDisposition:
+      description: Файл отдаётся как вложение (attachment). Исходное имя файла передаётся в параметре filename* в кодировке UTF-8.
+      schema:
+        type: string
+  parameters:
+    assignmentId:
+      name: assignmentId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    fileId:
+      name: fileId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    classId:
+      name: classId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    studentId:
+      name: studentId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64

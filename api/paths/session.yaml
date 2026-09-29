@@ -11,7 +11,7 @@ get:
             $ref: '../components/schemas/Me.yaml'
     '401':
       $ref: ../components/responses/Unauthorized.yaml
-      description: Неверный логин или пароль
+      description: Вход не выполнен
 
 post:
   operationId: login
@@ -39,7 +39,7 @@ post:
       description: Некорректное тело запроса
     '401':
       $ref: ../components/responses/Unauthorized.yaml
-      description: Вход не выполнен
+      description: Неверный логин или пароль
     '429':
       $ref: ../components/responses/TooManyRequests.yaml
       description: Слишком много попыток входа
