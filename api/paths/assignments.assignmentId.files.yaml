@@ -26,12 +26,17 @@ post:
           schema:
             $ref: ../components/schemas/FileInfo.yaml
     '400':
+      $ref: ../components/responses/BadRequest.yaml
       description: Поле file отсутствует
     '401':
+      $ref: ../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../components/responses/Forbidden.yaml
       description: Доступно только учителю
     '404':
+      $ref: ../components/responses/NotFound.yaml
       description: Задание не найдено
     '413':
+      $ref: ../components/responses/PayloadTooLarge.yaml
       description: Файл больше 50 МБ

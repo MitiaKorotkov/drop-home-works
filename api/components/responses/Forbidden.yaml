@@ -1,0 +1,5 @@
+description: Доступ запрещён (коды forbidden, cross_origin)
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/Problem.yaml

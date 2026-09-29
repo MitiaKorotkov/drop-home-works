@@ -1,0 +1,18 @@
+type: object
+properties:
+  type:
+    type: string
+    format: uri-reference
+  title:
+    type: string
+  status:
+    type: integer
+    format: int32
+  detail:
+    type: string
+  code:
+    $ref: ./ErrorCode.yaml
+required:
+  - title
+  - status
+  - code

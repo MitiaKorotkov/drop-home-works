@@ -18,10 +18,13 @@ get:
             type: string
             format: binary
     '401':
+      $ref: ../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../components/responses/Forbidden.yaml
       description: Доступно только учителю
     '404':
+      $ref: ../components/responses/NotFound.yaml
       description: Задание или файл не найдены
 
 delete:
@@ -32,8 +35,11 @@ delete:
     '204':
       description: Файл удалён
     '401':
+      $ref: ../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../components/responses/Forbidden.yaml
       description: Доступно только учителю
     '404':
+      $ref: ../components/responses/NotFound.yaml
       description: Задание или файл не найдены

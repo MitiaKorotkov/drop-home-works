@@ -17,10 +17,13 @@ get:
             type: string
             format: binary
     '401':
+      $ref: ../../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../../components/responses/Forbidden.yaml
       description: Доступно только ученикам
     '404':
+      $ref: ../../components/responses/NotFound.yaml
       description: Задание не найдено или работа ещё не сдана
 put:
   operationId: uploadMySubmission
@@ -48,14 +51,20 @@ put:
           schema:
             $ref: ../../components/schemas/StudentAssignment.yaml
     '400':
+      $ref: ../../components/responses/BadRequest.yaml
       description: Файл не PDF или поле file отсутствует
     '401':
+      $ref: ../../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../../components/responses/Forbidden.yaml
       description: Доступно только ученикам
     '404':
+      $ref: ../../components/responses/NotFound.yaml
       description: Задание не найдено или не выдано классу ученика
     '409':
+      $ref: ../../components/responses/Conflict.yaml
       description: 'Сдать нельзя: дедлайн прошёл или работа уже на проверке'
     '413':
+      $ref: ../../components/responses/PayloadTooLarge.yaml
       description: Файл больше 20 МБ

@@ -1,0 +1,5 @@
+description: Слишком много попыток (код too_many_attempts)
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/Problem.yaml

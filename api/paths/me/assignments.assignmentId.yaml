@@ -14,8 +14,11 @@ get:
           schema:
             $ref: ../../components/schemas/StudentAssignmentDetails.yaml
     '401':
+      $ref: ../../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../../components/responses/Forbidden.yaml
       description: Доступно только ученикам
     '404':
+      $ref: ../../components/responses/NotFound.yaml
       description: Задание не найдено или не выдано классу ученика

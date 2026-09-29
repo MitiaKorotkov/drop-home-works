@@ -13,6 +13,8 @@ get:
             items:
               $ref: '../../components/schemas/StudentAssignment.yaml'
     '401':
+      $ref: ../../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../../components/responses/Forbidden.yaml
       description: Доступно только ученикам

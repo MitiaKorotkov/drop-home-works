@@ -1,0 +1,5 @@
+description: Файл слишком большой (код file_too_large)
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/Problem.yaml

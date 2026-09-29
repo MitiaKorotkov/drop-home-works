@@ -1,0 +1,28 @@
+type: string
+enum:
+  # 400
+  - validation_failed
+  - class_not_found
+  - duplicate_class
+  - not_pdf
+  - score_too_high
+  # 401
+  - unauthorized
+  - invalid_credentials
+  # 403
+  - forbidden
+  - cross_origin
+  # 404
+  - not_found
+  # 409
+  - login_taken
+  - class_name_taken
+  - deadline_passed
+  - submission_locked
+  - already_reviewed
+  # 413
+  - file_too_large
+  # 429
+  - too_many_attempts
+  # 500
+  - internal_error

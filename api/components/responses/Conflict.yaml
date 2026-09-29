@@ -1,0 +1,5 @@
+description: Действие противоречит текущему состоянию (коды login_taken, class_name_taken, deadline_passed, submission_locked, already_reviewed)
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/Problem.yaml

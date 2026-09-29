@@ -1,0 +1,5 @@
+description: Вход не выполнен (коды unauthorized, invalid_credentials)
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/Problem.yaml

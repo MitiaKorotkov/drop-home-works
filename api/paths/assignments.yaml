@@ -12,8 +12,10 @@ get:
             items: 
               $ref: ../components/schemas/Assignment.yaml
     '401':
+      $ref: ../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../components/responses/Forbidden.yaml
       description: Доступно только учителю
 
 post:
@@ -35,8 +37,11 @@ post:
           schema:
             $ref: ../components/schemas/Assignment.yaml
     '400':
+      $ref: ../components/responses/BadRequest.yaml
       description: Некорректное тело запроса или класс не существует или класс указан дважды
     '401':
+      $ref: ../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../components/responses/Forbidden.yaml
       description: Доступно только учителю

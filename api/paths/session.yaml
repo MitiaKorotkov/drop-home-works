@@ -10,7 +10,8 @@ get:
           schema:
             $ref: '../components/schemas/Me.yaml'
     '401':
-      description: Вход не выполнен
+      $ref: ../components/responses/Unauthorized.yaml
+      description: Неверный логин или пароль
 
 post:
   operationId: login
@@ -34,10 +35,13 @@ post:
           schema:
             $ref: '../components/schemas/Me.yaml'
     '400':
+      $ref: ../components/responses/BadRequest.yaml
       description: Некорректное тело запроса
     '401':
+      $ref: ../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '429':
+      $ref: ../components/responses/TooManyRequests.yaml
       description: Слишком много попыток входа
 
 delete:
@@ -52,4 +56,5 @@ delete:
         Set-Cookie:
           $ref: '../components/headers/SessionCookie.yaml'
     '403':
+      $ref: ../components/responses/Forbidden.yaml
       description: Запрос с чужого сайта отклонён

@@ -12,8 +12,10 @@ get:
             items:
               $ref: ../components/schemas/Class.yaml
     '401': 
+      $ref: ../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../components/responses/Forbidden.yaml
       description: Доступно только учителю
 
 post:
@@ -34,10 +36,14 @@ post:
           schema:
             $ref: ../components/schemas/Class.yaml
     '400':
+      $ref: ../components/responses/BadRequest.yaml
       description: Некорректное тело запроса
     '401': 
+      $ref: ../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../components/responses/Forbidden.yaml
       description: Доступно только учителю
     '409':
+      $ref: ../components/responses/Conflict.yaml
       description: Название занято

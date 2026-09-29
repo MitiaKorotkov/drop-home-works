@@ -1,0 +1,5 @@
+description: Некорректный запрос (коды validation_failed, class_not_found, duplicate_class, not_pdf, score_too_high)
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/Problem.yaml

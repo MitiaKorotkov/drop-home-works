@@ -20,12 +20,16 @@ patch:
           schema:
             $ref: ../components/schemas/Student.yaml
     '400':
+      $ref: ../components/responses/BadRequest.yaml
       description: Некорректное тело запроса или класс не существует
     '401': 
+      $ref: ../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../components/responses/Forbidden.yaml
       description: Доступно только учителю
     '404':
+      $ref: ../components/responses/NotFound.yaml
       description: Ученик не найден
 
 delete:
@@ -37,8 +41,11 @@ delete:
     '204':
       description: Ученик удалён
     '401': 
+      $ref: ../components/responses/Unauthorized.yaml
       description: Вход не выполнен
     '403':
+      $ref: ../components/responses/Forbidden.yaml
       description: Доступно только учителю
     '404':
+      $ref: ../components/responses/NotFound.yaml
       description: Ученик не найден
