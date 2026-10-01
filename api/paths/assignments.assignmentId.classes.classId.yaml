@@ -19,7 +19,7 @@ put:
       description: Дедлайн установлен
     '400':
       $ref: ../components/responses/BadRequest.yaml
-      description: Некорректное тело запроса или класс указан дважды
+      description: Некорректное тело запроса
     '401': 
       $ref: ../components/responses/Unauthorized.yaml
       description: Вход не выполнен

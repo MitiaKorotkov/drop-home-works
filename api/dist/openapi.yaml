@@ -2,6 +2,10 @@ openapi: 3.2.0
 info:
   title: Homeworks API
   version: 1.0.0
+  description: |
+    Любой POST, PUT, PATCH или DELETE, пришедший с чужого сайта, отклоняется
+    с ответом 403 и кодом `cross_origin`, даже если в описании эндпоинта 403
+    не упомянут.
 servers:
   - url: /api
 security:
@@ -64,6 +68,9 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
           description: Неверный логин или пароль
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: Запрос с чужого сайта отклонён
         '429':
           $ref: '#/components/responses/TooManyRequests'
           description: Слишком много попыток входа
@@ -655,7 +662,7 @@ paths:
           description: Дедлайн установлен
         '400':
           $ref: '#/components/responses/BadRequest'
-          description: Некорректное тело запроса или класс указан дважды
+          description: Некорректное тело запроса
         '401':
           $ref: '#/components/responses/Unauthorized'
           description: Вход не выполнен
@@ -1177,14 +1184,14 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
-    TooManyRequests:
-      description: Слишком много попыток (код too_many_attempts)
+    Forbidden:
+      description: Доступ запрещён (коды forbidden, cross_origin)
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
-    Forbidden:
-      description: Доступ запрещён (коды forbidden, cross_origin)
+    TooManyRequests:
+      description: Слишком много попыток (код too_many_attempts)
       content:
         application/problem+json:
           schema:

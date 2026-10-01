@@ -40,6 +40,9 @@ post:
     '401':
       $ref: ../components/responses/Unauthorized.yaml
       description: Неверный логин или пароль
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+      description: Запрос с чужого сайта отклонён
     '429':
       $ref: ../components/responses/TooManyRequests.yaml
       description: Слишком много попыток входа

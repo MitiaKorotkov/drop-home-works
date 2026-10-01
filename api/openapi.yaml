@@ -3,6 +3,10 @@ openapi: 3.2.0
 info:
   title: Homeworks API
   version: 1.0.0
+  description: |
+    Любой POST, PUT, PATCH или DELETE, пришедший с чужого сайта, отклоняется
+    с ответом 403 и кодом `cross_origin`, даже если в описании эндпоинта 403
+    не упомянут.
 
 servers:
   - url: /api
