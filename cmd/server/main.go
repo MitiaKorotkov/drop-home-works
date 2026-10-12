@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/config"
+	"github.com/MitiaKorotkov/drop-home-works/internal/db"
 	"github.com/MitiaKorotkov/drop-home-works/internal/health"
 	"github.com/MitiaKorotkov/drop-home-works/internal/httpserver"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -39,6 +40,10 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("create db pool: %w", err)
 	}
 	defer pool.Close()
+
+	if err := db.Migrate(ctx, pool, logger); err != nil {
+		return fmt.Errorf("migrate: %w", err)
+	}
 
 	// 4. Port
 	ln, err := net.Listen("tcp", cfg.HTTPAddress)
