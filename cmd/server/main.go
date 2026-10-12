@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/config"
+	"github.com/MitiaKorotkov/drop-home-works/internal/health"
 	"github.com/MitiaKorotkov/drop-home-works/internal/httpserver"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func run(ctx context.Context) error {
@@ -31,17 +33,26 @@ func run(ctx context.Context) error {
 	slog.SetDefault(logger)
 	logger.Info("config loaded", "addr", cfg.HTTPAddress, "storage_dir", cfg.StorageDir)
 
-	// 3. Port
+	// 3. Pgx pool
+	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("create db pool: %w", err)
+	}
+	defer pool.Close()
+
+	// 4. Port
 	ln, err := net.Listen("tcp", cfg.HTTPAddress)
 	if err != nil {
 		return fmt.Errorf("open port: %w", err)
 	}
 
-	// 4. Server
+	// 5. Server
 	mux := http.NewServeMux()
+	mux.Handle("GET /api/health", health.Handler(pool, 2*time.Second, logger))
+
 	srv := httpserver.New(mux, logger)
 
-	// 5. Run
+	// 6. Run
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- srv.Serve(ln)
@@ -55,7 +66,7 @@ func run(ctx context.Context) error {
 		// NOTE: Переходим к остановке
 	}
 
-	// 6. Stop
+	// 7. Stop
 	stop()
 	logger.Info("shutting down")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
