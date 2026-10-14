@@ -13,6 +13,7 @@ import (
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/config"
 	"github.com/MitiaKorotkov/drop-home-works/internal/db"
+	"github.com/MitiaKorotkov/drop-home-works/internal/handlers"
 	"github.com/MitiaKorotkov/drop-home-works/internal/health"
 	"github.com/MitiaKorotkov/drop-home-works/internal/httpserver"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -54,6 +55,8 @@ func run(ctx context.Context) error {
 	// 5. Server
 	mux := http.NewServeMux()
 	mux.Handle("GET /api/health", health.Handler(pool, 2*time.Second, logger))
+
+	handlers.Register(mux, handlers.NewServer(logger))
 
 	srv := httpserver.New(mux, logger)
 
