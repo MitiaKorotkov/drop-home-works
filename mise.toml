@@ -1,2 +1,5 @@
 [env]
 _.file = ".env"
+
+[tools]
+sqlc = "1.31.1"
