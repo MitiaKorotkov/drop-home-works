@@ -88,9 +88,16 @@ func run(ctx context.Context) error {
 }
 
 func main() {
-	err := run(context.Background())
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Server:", err)
-		os.Exit(1)
+	ctx := context.Background()
+	if len(os.Args) > 1 && os.Args[1] == "create-teacher" {
+		if err := runCreateTeacher(ctx, os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "create teacher:", err)
+			os.Exit(1)
+		}
+	} else {
+		if err := run(ctx); err != nil {
+			fmt.Fprintln(os.Stderr, "server:", err)
+			os.Exit(1)
+		}
 	}
 }
