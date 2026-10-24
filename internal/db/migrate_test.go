@@ -2,7 +2,6 @@ package db_test
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/testdb"
@@ -29,10 +28,6 @@ func countTables(t *testing.T, pool *pgxpool.Pool) int64 {
 	return n
 }
 
-func TestMain(m *testing.M) {
-	os.Exit(testdb.Main(m))
-}
-
 func TestMigrate(t *testing.T) {
 	pool := testdb.New(t)
 
@@ -48,7 +43,7 @@ func TestMigrateDownUp(t *testing.T) {
 	sqlDB := stdlib.OpenDBFromPool(pool)
 	defer sqlDB.Close()
 
-	provider, err := goose.NewProvider(goose.DialectPostgres, sqlDB, migrations.F5)
+	provider, err := goose.NewProvider(goose.DialectPostgres, sqlDB, migrations.FS)
 	if err != nil {
 		t.Fatalf("create goose provider: %v", err)
 	}

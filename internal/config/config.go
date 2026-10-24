@@ -47,7 +47,7 @@ func checkStorageDir(dir string) error {
 	return err
 }
 
-func checkDataBaseURL(url string) error {
+func checkDatabaseURL(url string) error {
 	if url == "" {
 		return errors.New("empty database url")
 	}
@@ -84,7 +84,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	if _, _, err := net.SplitHostPort(config.HTTPAddress); err != nil {
 		errs = append(errs, fmt.Errorf("%s: %w", envHTTPAddr, err))
 	}
-	if err := checkDataBaseURL(config.DatabaseURL); err != nil {
+	if err := checkDatabaseURL(config.DatabaseURL); err != nil {
 		errs = append(errs, fmt.Errorf("%s: %w", envDatabaseURL, err))
 	}
 	if err := checkStorageDir(config.StorageDir); err != nil {

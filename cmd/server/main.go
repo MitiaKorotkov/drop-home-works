@@ -16,7 +16,6 @@ import (
 	"github.com/MitiaKorotkov/drop-home-works/internal/handlers"
 	"github.com/MitiaKorotkov/drop-home-works/internal/health"
 	"github.com/MitiaKorotkov/drop-home-works/internal/httpserver"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func run(ctx context.Context) error {
@@ -36,15 +35,11 @@ func run(ctx context.Context) error {
 	logger.Info("config loaded", "addr", cfg.HTTPAddress, "storage_dir", cfg.StorageDir)
 
 	// 3. Pgx pool
-	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	pool, err := openDB(ctx, cfg.DatabaseURL, logger)
 	if err != nil {
-		return fmt.Errorf("create db pool: %w", err)
+		return err
 	}
 	defer pool.Close()
-
-	if err := db.Migrate(ctx, pool, logger); err != nil {
-		return fmt.Errorf("migrate: %w", err)
-	}
 
 	// 4. Port
 	ln, err := net.Listen("tcp", cfg.HTTPAddress)
@@ -56,7 +51,7 @@ func run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.Handle("GET /api/health", health.Handler(pool, 2*time.Second, logger))
 
-	handlers.Register(mux, handlers.NewServer(logger))
+	handlers.Register(mux, handlers.NewServer(logger, db.New(pool)))
 
 	srv := httpserver.New(mux, logger)
 

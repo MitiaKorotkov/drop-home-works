@@ -17,7 +17,6 @@ import (
 	"github.com/MitiaKorotkov/drop-home-works/internal/account"
 	"github.com/MitiaKorotkov/drop-home-works/internal/config"
 	"github.com/MitiaKorotkov/drop-home-works/internal/db"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/term"
 )
 
@@ -56,17 +55,16 @@ func readPassword(stdin *os.File) (string, error) {
 func runCreateTeacher(ctx context.Context, args []string) error {
 	var teacher account.TeacherInput
 
-	flagSet := flag.NewFlagSet("create-teacher", flag.ContinueOnError)
-	flagSet.StringVar(&teacher.Login, "login", "", "teachers login")
-	flagSet.StringVar(&teacher.FirstName, "first-name", "", "teachers first name")
-	flagSet.StringVar(&teacher.LastName, "last-name", "", "teachers last name")
-	if err := flagSet.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return nil
-		}
-
-		return err
+	flagSet := flag.NewFlagSet("create-teacher", flag.ExitOnError)
+	flagSet.StringVar(&teacher.Login, "login", "", "teacher's login")
+	flagSet.StringVar(&teacher.FirstName, "first-name", "", "teacher's first name")
+	flagSet.StringVar(&teacher.LastName, "last-name", "", "teacher's last name")
+	flagSet.Usage = func() {
+		fmt.Fprintln(flagSet.Output(), "Usage: server create-teacher -login LOGIN -first-name NAME -last-name NAME")
+		fmt.Fprintln(flagSet.Output(), "The password is read from stdin: typed twice in a terminal, or the first line of piped input.")
+		flagSet.PrintDefaults()
 	}
+	flagSet.Parse(args)
 
 	if _, err := account.NormalizeLogin(teacher.Login); err != nil {
 		return fmt.Errorf("login: %w", err)
@@ -78,11 +76,6 @@ func runCreateTeacher(ctx context.Context, args []string) error {
 		return fmt.Errorf("last name: %w", err)
 	}
 
-	// 0. Context
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	// 1. Config
 	cfg, err := config.Load(os.LookupEnv)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
@@ -94,21 +87,17 @@ func runCreateTeacher(ctx context.Context, args []string) error {
 	}
 	teacher.Password = password
 
-	// 2. Logger
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	logger := newLogger(os.Stderr, cfg.LogFormat, cfg.LogLevel)
 	slog.SetDefault(logger)
-	logger.Info("config loaded", "addr", cfg.HTTPAddress, "storage_dir", cfg.StorageDir)
 
-	// 3. Pgx pool
-	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	pool, err := openDB(ctx, cfg.DatabaseURL, logger)
 	if err != nil {
-		return fmt.Errorf("create db pool: %w", err)
+		return err
 	}
 	defer pool.Close()
-
-	if err := db.Migrate(ctx, pool, logger); err != nil {
-		return fmt.Errorf("migrate: %w", err)
-	}
 
 	id, err := account.CreateTeacher(ctx, db.New(pool), teacher)
 	if err != nil {

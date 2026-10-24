@@ -6,17 +6,24 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/db"
 	"github.com/MitiaKorotkov/drop-home-works/internal/password"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
 var (
-	ErrInvalidInput  = errors.New("invalid input")
-	ErrTeacherExists = errors.New("teacher already exists")
-	ErrLoginTaken    = errors.New("login already taken")
+	ErrInvalidInput       = errors.New("invalid input")
+	ErrTeacherExists      = errors.New("teacher already exists")
+	ErrLoginTaken         = errors.New("login already taken")
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrNoSession          = errors.New("no session")
+
+	loginRe   = regexp.MustCompile("^[a-z0-9._-]{3,32}$")
+	dummyHash = sync.OnceValue(func() string { return password.Hash("Qwerty123!") })
 )
 
 type TeacherInput struct {
@@ -26,13 +33,20 @@ type TeacherInput struct {
 	LastName  string
 }
 
-var loginRe = regexp.MustCompile("^[a-z0-9._-]{3,32}$")
+type User struct {
+	ID        int64
+	Role      db.UserRole
+	FirstName string
+	LastName  string
+	ClassID   *int64
+	ClassName *string
+}
 
 func NormalizeLogin(login string) (string, error) {
 	login = strings.ToLower(login)
 
 	if !loginRe.MatchString(login) {
-		return "", fmt.Errorf("%w: must be 3–32 characters: latin letters, digits, '.', '_' or '-'", ErrInvalidInput)
+		return "", fmt.Errorf("%w: must be 3-32 characters: latin letters, digits, '.', '_' or '-'", ErrInvalidInput)
 	}
 
 	return login, nil
@@ -50,7 +64,7 @@ func NormalizeName(name string) (string, error) {
 func ValidatePassword(password string) error {
 	n := utf8.RuneCountInString(password)
 	if n < 8 || 128 < n {
-		return fmt.Errorf("%w: must be 8–128 characters", ErrInvalidInput)
+		return fmt.Errorf("%w: must be 8-128 characters", ErrInvalidInput)
 	}
 
 	return nil
@@ -96,4 +110,60 @@ func CreateTeacher(ctx context.Context, q *db.Queries, in TeacherInput) (int64, 
 	}
 
 	return id, nil
+}
+
+func Authenticate(ctx context.Context, q *db.Queries, login, passwd string) (User, error) {
+	login, err := NormalizeLogin(login)
+	if err != nil {
+		return User{}, ErrInvalidCredentials
+	}
+
+	u, err := q.GetUserByLogin(ctx, login)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// NOTE: вызов нужен, чтобы по времени обработки
+		// нельзя было выяснить, почему сервер отклонил пару
+		// логин-пароль -- из-за неверного логина или из-за
+		// неверного пароля
+		password.Verify(passwd, dummyHash())
+		return User{}, ErrInvalidCredentials
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("get user by login: %w", err)
+	}
+
+	ok, err := password.Verify(passwd, u.PasswordHash)
+	if err != nil {
+		return User{}, fmt.Errorf("verify password: %w", err)
+	}
+	if !ok {
+		return User{}, ErrInvalidCredentials
+	}
+
+	return User{
+		ID:        u.ID,
+		Role:      u.Role,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		ClassID:   u.ClassID,
+		ClassName: u.ClassName,
+	}, nil
+}
+
+func UserBySession(ctx context.Context, q *db.Queries, tokenHash []byte) (User, error) {
+	u, err := q.GetSessionUser(ctx, tokenHash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, ErrNoSession
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("get session user: %w", err)
+	}
+
+	return User{
+		ID:        u.ID,
+		Role:      u.Role,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		ClassID:   u.ClassID,
+		ClassName: u.ClassName,
+	}, nil
 }

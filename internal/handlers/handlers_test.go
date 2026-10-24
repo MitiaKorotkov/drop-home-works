@@ -29,8 +29,7 @@ func TestRegister(t *testing.T) {
 	}{
 		{"session without login", http.MethodGet, "/api/session", "", http.StatusUnauthorized, api.ErrorCodeUnauthorized},
 		{"broken JSON body", http.MethodPost, "/api/session", `{"login":`, http.StatusBadRequest, api.ErrorCodeValidationFailed},
-		// Login ещё не написан, заглушка паникует. Убрать в 4.4.
-		{"not implemented yet", http.MethodPost, "/api/session", `{"login":"a","password":"b"}`, http.StatusInternalServerError, api.ErrorCodeInternalError},
+		{"invalid login format", http.MethodPost, "/api/session", `{"login":"a","password":"b"}`, http.StatusUnauthorized, api.ErrorCodeInvalidCredentials},
 		{"bad path parameter", http.MethodGet, "/api/assignments/abc", "", http.StatusBadRequest, api.ErrorCodeValidationFailed},
 	}
 
@@ -38,7 +37,7 @@ func TestRegister(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			logger, _ := newTestLogger()
 			mux := http.NewServeMux()
-			Register(mux, NewServer(logger))
+			Register(mux, NewServer(logger, nil))
 			rr := httptest.NewRecorder()
 			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
 			httpserver.New(mux, logger).Handler.ServeHTTP(rr, req)

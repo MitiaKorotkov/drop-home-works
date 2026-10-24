@@ -154,6 +154,6 @@ type User struct {
 	PasswordHash string
 	LastName     string
 	FirstName    string
-	ClassID      pgtype.Int8
+	ClassID      *int64
 	CreatedAt    time.Time
 }

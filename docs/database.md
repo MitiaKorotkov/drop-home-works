@@ -1,6 +1,6 @@
 # База данных
 
-Схема — [migrations/00001_init.sql](../migrations/00001_init.sql). Здесь описано, как она устроена и почему именно так. Требования — в [Decisions.md](Decisions.md).
+Схема — [migrations/00001_init.sql](../migrations/00001_init.sql). Здесь описано, как она устроена и почему именно так. Требования — в [decisions.md](decisions.md).
 
 ## Таблицы
 

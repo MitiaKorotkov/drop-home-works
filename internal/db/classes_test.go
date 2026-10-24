@@ -1,47 +1,12 @@
 package db_test
 
 import (
-	"context"
-	"errors"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/db"
-	"github.com/MitiaKorotkov/drop-home-works/internal/testdb"
-	"github.com/jackc/pgx/v5/pgconn"
 )
-
-func newQueries(t *testing.T) *db.Queries {
-	t.Helper()
-	return db.New(testdb.New(t))
-}
-
-func requirePgError(t *testing.T, err error, wantCode, wantConstraint string) {
-	t.Helper()
-
-	if err == nil {
-		t.Fatalf("error = nil, want PostgreSQL error %s (%s)", wantCode, wantConstraint)
-	}
-	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) {
-		t.Fatalf("error = %v, want PostgreSQL error %s (%s)", err, wantCode, wantConstraint)
-	}
-	if pgErr.Code != wantCode || pgErr.ConstraintName != wantConstraint {
-		t.Fatalf("PostgreSQL error %s (%q), want %s (%q)", pgErr.Code, pgErr.ConstraintName, wantCode, wantConstraint)
-	}
-}
-
-func mustCreateClass(t *testing.T, q *db.Queries, name string) db.Class {
-	t.Helper()
-
-	c, err := q.CreateClass(context.Background(), name)
-	if err != nil {
-		t.Fatalf("CreateClass(%q): %v", name, err)
-	}
-
-	return c
-}
 
 func TestCreateClass(t *testing.T) {
 	q := newQueries(t)

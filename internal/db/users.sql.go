@@ -7,14 +7,38 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createTeacher = `-- name: CreateTeacher :one
+INSERT INTO users (role, login, password_hash, last_name, first_name)
+VALUES ('teacher', $1, $2, $3, $4)
+RETURNING id
+`
+
+type CreateTeacherParams struct {
+	Login        string
+	PasswordHash string
+	LastName     string
+	FirstName    string
+}
+
+func (q *Queries) CreateTeacher(ctx context.Context, arg CreateTeacherParams) (int64, error) {
+	row := q.db.QueryRow(ctx, createTeacher,
+		arg.Login,
+		arg.PasswordHash,
+		arg.LastName,
+		arg.FirstName,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getUserByLogin = `-- name: GetUserByLogin :one
-SELECT id, role, login, password_hash, first_name, last_name, class_id
-FROM users
-WHERE login = $1
+SELECT u.id, u.role, u.login, u.password_hash, u.first_name, u.last_name, u.class_id, c.name AS class_name
+FROM users u
+LEFT JOIN classes c ON c.id = u.class_id
+WHERE u.login = $1
 `
 
 type GetUserByLoginRow struct {
@@ -24,7 +48,8 @@ type GetUserByLoginRow struct {
 	PasswordHash string
 	FirstName    string
 	LastName     string
-	ClassID      pgtype.Int8
+	ClassID      *int64
+	ClassName    *string
 }
 
 func (q *Queries) GetUserByLogin(ctx context.Context, login string) (GetUserByLoginRow, error) {
@@ -38,6 +63,18 @@ func (q *Queries) GetUserByLogin(ctx context.Context, login string) (GetUserByLo
 		&i.FirstName,
 		&i.LastName,
 		&i.ClassID,
+		&i.ClassName,
 	)
 	return i, err
+}
+
+const teacherExists = `-- name: TeacherExists :one
+SELECT EXISTS (SELECT 1 FROM users WHERE role = 'teacher')
+`
+
+func (q *Queries) TeacherExists(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, teacherExists)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }

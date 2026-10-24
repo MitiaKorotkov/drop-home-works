@@ -6,7 +6,7 @@
 
 Фронтенд (React SPA) пишется отдельно и работает по спецификации API.
 
-- Требования $-$ [docs/Decisions.md](docs/Decisions.md)
+- Требования $-$ [docs/decisions.md](docs/decisions.md)
 - Устройство базы $-$ [docs/database.md](docs/database.md)
 
 - API $-$ [api/openapi.yaml](api/openapi.yaml)

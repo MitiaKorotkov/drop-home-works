@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/db"
 	"github.com/MitiaKorotkov/drop-home-works/internal/password"
@@ -210,4 +211,153 @@ func TestCreateTeacher(t *testing.T) {
 			t.Fatalf("error = %v, want error = %v", err, ErrLoginTaken)
 		}
 	})
+}
+
+func TestAuthenticate(t *testing.T) {
+	ctx := context.Background()
+	pool := testdb.New(t)
+	q := db.New(pool)
+
+	id, err := CreateTeacher(ctx, q, TeacherInput{
+		Login:     "Teacher.One",
+		Password:  "Qwerty123!",
+		FirstName: "Teacher",
+		LastName:  "One",
+	})
+	if err != nil {
+		t.Fatalf("create teacher: %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		login    string
+		password string
+		wantErr  error
+	}{
+		{"correct password", "teacher.one", "Qwerty123!", nil},
+		{"login in other case", "TEACHER.ONE", "Qwerty123!", nil},
+		{"wrong password", "teacher.one", "wrong-pass", ErrInvalidCredentials},
+		{"unknown login", "nobody", "Qwerty123!", ErrInvalidCredentials},
+		{"wrong format", "ab", "Qwerty123!", ErrInvalidCredentials},
+		{"empty", "", "", ErrInvalidCredentials},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u, err := Authenticate(ctx, q, tt.login, tt.password)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("Authenticate(%q, %q) error = %v, want %v", tt.login, tt.password, err, tt.wantErr)
+			}
+			if err == nil && u.ID != id {
+				t.Errorf("Authenticate(%q, %q) returned user id %d, want %d", tt.login, tt.password, u.ID, id)
+			}
+		})
+	}
+
+	t.Run("bad hash", func(t *testing.T) {
+		ctx := context.Background()
+		pool := testdb.New(t)
+		q := db.New(pool)
+
+		_, err := CreateTeacher(ctx, q, TeacherInput{
+			Login:     "Teacher.One",
+			Password:  "Qwerty123!",
+			FirstName: "Teacher",
+			LastName:  "One",
+		})
+		if err != nil {
+			t.Fatalf("create teacher: %v", err)
+		}
+
+		if _, err := pool.Exec(ctx, "UPDATE users SET password_hash = 'broken'"); err != nil {
+			t.Fatalf("corrupt password hash: %v", err)
+		}
+
+		_, err = Authenticate(ctx, q, "Teacher.One", "Qwerty123!")
+		if !errors.Is(err, password.ErrInvalidHash) || errors.Is(err, ErrInvalidCredentials) {
+			t.Errorf("Authenticate with a corrupted hash: error = %v, want password.ErrInvalidHash and not ErrInvalidCredentials: a broken hash is a server error (500), not a wrong password (401)", err)
+		}
+	})
+}
+
+func TestUserBySession(t *testing.T) {
+	ctx := t.Context()
+	pool := testdb.New(t)
+	q := db.New(pool)
+
+	teacherID, err := CreateTeacher(ctx, q, TeacherInput{
+		Login:     "teacher",
+		Password:  "Qwerty123!",
+		FirstName: "Мария",
+		LastName:  "Иванова",
+	})
+	if err != nil {
+		t.Fatalf("CreateTeacher: %v", err)
+	}
+
+	class, err := q.CreateClass(ctx, "7А")
+	if err != nil {
+		t.Fatalf("CreateClass: %v", err)
+	}
+	var studentID int64
+	err = pool.QueryRow(ctx,
+		`INSERT INTO users (role, login, password_hash, last_name, first_name, class_id)
+		VALUES ('student', 'student', 'x', 'Петров', 'Пётр', $1)
+		RETURNING id`,
+		class.ID,
+	).Scan(&studentID)
+	if err != nil {
+		t.Fatalf("insert student: %v", err)
+	}
+
+	sessions := []db.CreateSessionParams{
+		{TokenHash: []byte("teacher"), UserID: teacherID, ExpiresAt: time.Now().Add(time.Hour)},
+		{TokenHash: []byte("student"), UserID: studentID, ExpiresAt: time.Now().Add(time.Hour)},
+		{TokenHash: []byte("expired"), UserID: teacherID, ExpiresAt: time.Now().Add(-time.Minute)},
+	}
+	for _, s := range sessions {
+		if err := q.CreateSession(ctx, s); err != nil {
+			t.Fatalf("CreateSession(%q): %v", s.TokenHash, err)
+		}
+	}
+
+	t.Run("teacher session", func(t *testing.T) {
+		got, err := UserBySession(t.Context(), q, []byte("teacher"))
+		if err != nil {
+			t.Fatalf("UserBySession: %v", err)
+		}
+		// У учителя ClassID и ClassName — nil, поэтому структуры можно сравнить через ==.
+		want := User{ID: teacherID, Role: db.UserRoleTeacher, FirstName: "Мария", LastName: "Иванова"}
+		if got != want {
+			t.Errorf("UserBySession = %+v, want %+v", got, want)
+		}
+	})
+
+	t.Run("student session", func(t *testing.T) {
+		got, err := UserBySession(t.Context(), q, []byte("student"))
+		if err != nil {
+			t.Fatalf("UserBySession: %v", err)
+		}
+		if got.ID != studentID || got.Role != db.UserRoleStudent {
+			t.Errorf("user = (id %d, %q), want (id %d, %q)", got.ID, got.Role, studentID, db.UserRoleStudent)
+		}
+		if got.ClassID == nil || got.ClassName == nil {
+			t.Fatalf("ClassID is nil: %t, ClassName is nil: %t; want class (%d, %q): UserBySession lost the class",
+				got.ClassID == nil, got.ClassName == nil, class.ID, class.Name)
+		}
+		if *got.ClassID != class.ID || *got.ClassName != class.Name {
+			t.Errorf("class = (%d, %q), want (%d, %q)", *got.ClassID, *got.ClassName, class.ID, class.Name)
+		}
+	})
+
+	for _, tt := range []struct{ name, hash string }{
+		{"expired session", "expired"},
+		{"unknown token", "unknown"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			u, err := UserBySession(t.Context(), q, []byte(tt.hash))
+			if !errors.Is(err, ErrNoSession) {
+				t.Errorf("UserBySession(%q) = %+v, %v; want ErrNoSession", tt.hash, u, err)
+			}
+		})
+	}
 }
