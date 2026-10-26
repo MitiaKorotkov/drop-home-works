@@ -3,7 +3,9 @@ package handlers
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
+	"net/netip"
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/account"
 	"github.com/MitiaKorotkov/drop-home-works/internal/api"
@@ -47,6 +49,38 @@ func (s *Server) loadSession(next http.Handler) http.Handler {
 		}
 
 		ctx := withSession(r.Context(), currentSession{user: u, tokenHash: hash})
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+
+	addr, err := netip.ParseAddr(host)
+	if err != nil {
+		return host
+	}
+
+	addr = addr.Unmap()
+	if addr.Is6() {
+		return netip.PrefixFrom(addr, 64).Masked().String()
+	}
+	return addr.String()
+}
+
+type clientIPKey struct{}
+
+func clientIPFrom(ctx context.Context) string {
+	ip, _ := ctx.Value(clientIPKey{}).(string)
+	return ip
+}
+
+func loadClientIP(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), clientIPKey{}, clientIP(r))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

@@ -51,7 +51,11 @@ func run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.Handle("GET /api/health", health.Handler(pool, 2*time.Second, logger))
 
-	handlers.Register(mux, handlers.NewServer(logger, db.New(pool)))
+	limits := handlers.DefaultLoginLimits()
+	go limits.ByIP.Run(ctx, time.Minute)
+	go limits.ByIPLogin.Run(ctx, time.Minute)
+
+	handlers.Register(mux, handlers.NewServer(logger, db.New(pool), limits))
 
 	srv := httpserver.New(mux, logger)
 

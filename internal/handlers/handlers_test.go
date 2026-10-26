@@ -37,7 +37,7 @@ func TestRegister(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			logger, _ := newTestLogger()
 			mux := http.NewServeMux()
-			Register(mux, NewServer(logger, nil))
+			Register(mux, NewServer(logger, nil, DefaultLoginLimits()))
 			rr := httptest.NewRecorder()
 			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
 			httpserver.New(mux, logger).Handler.ServeHTTP(rr, req)

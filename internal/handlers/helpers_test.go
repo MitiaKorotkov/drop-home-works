@@ -26,23 +26,39 @@ var testTeacher = account.TeacherInput{
 
 func postLogin(t *testing.T, h http.Handler, login, passwd string) *http.Response {
 	t.Helper()
+	return postLoginFrom(t, h, "", login, passwd)
+}
+
+// postLoginFrom отправляет запрос входа с адреса remoteAddr вида "ip:port".
+// Пустая строка — адрес httptest по умолчанию, 192.0.2.1:1234.
+func postLoginFrom(t *testing.T, h http.Handler, remoteAddr, login, passwd string) *http.Response {
+	t.Helper()
 
 	body, err := json.Marshal(api.LoginRequest{Login: login, Password: passwd})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
 
+	req := httptest.NewRequest(http.MethodPost, "/api/session", bytes.NewReader(body))
+	if remoteAddr != "" {
+		req.RemoteAddr = remoteAddr
+	}
 	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/session", bytes.NewReader(body)))
+	h.ServeHTTP(rr, req)
 	return rr.Result()
 }
 
 func newTestServer(t *testing.T) (http.Handler, *pgxpool.Pool) {
 	t.Helper()
+	return newTestServerWithLimits(t, DefaultLoginLimits())
+}
+
+func newTestServerWithLimits(t *testing.T, limits LoginLimits) (http.Handler, *pgxpool.Pool) {
+	t.Helper()
 
 	logger, _ := newTestLogger()
 	pool := testdb.New(t)
-	s := NewServer(logger, db.New(pool))
+	s := NewServer(logger, db.New(pool), limits)
 	mux := http.NewServeMux()
 
 	Register(mux, s)

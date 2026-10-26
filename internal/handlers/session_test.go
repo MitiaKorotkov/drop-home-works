@@ -15,6 +15,7 @@ import (
 	"github.com/MitiaKorotkov/drop-home-works/internal/api"
 	"github.com/MitiaKorotkov/drop-home-works/internal/db"
 	"github.com/MitiaKorotkov/drop-home-works/internal/password"
+	"github.com/MitiaKorotkov/drop-home-works/internal/ratelimit"
 	"github.com/MitiaKorotkov/drop-home-works/internal/session"
 	"github.com/jackc/pgx/v5"
 )
@@ -210,5 +211,102 @@ func TestLogout(t *testing.T) {
 		h, _ := newTestServer(t)
 
 		requireLoggedOut(t, doRequest(t, h, http.MethodDelete, "/api/session", &http.Cookie{Name: session.CookieName, Value: "garbage"}))
+	})
+}
+
+func TestLoginRateLimit(t *testing.T) {
+	const ipA, ipB = "203.0.113.1:40000", "203.0.113.2:40000"
+	login, right, wrong := testTeacher.Login, testTeacher.Password, "wrong-pass"
+
+	// setup — сервер с учителем и маленькими лимитами на час: в пределах теста окно не истечёт.
+	setup := func(t *testing.T, byIP, byIPLogin int) http.Handler {
+		t.Helper()
+		h, pool := newTestServerWithLimits(t, LoginLimits{
+			ByIP:      ratelimit.New(byIP, time.Hour),
+			ByIPLogin: ratelimit.New(byIPLogin, time.Hour),
+		})
+		if _, err := account.CreateTeacher(t.Context(), db.New(pool), testTeacher); err != nil {
+			t.Fatalf("CreateTeacher: %v", err)
+		}
+		return h
+	}
+	requireStatus := func(t *testing.T, resp *http.Response, want int) {
+		t.Helper()
+		if resp.StatusCode != want {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("status = %d, want %d; body: %s", resp.StatusCode, want, body)
+		}
+	}
+
+	t.Run("blocked after the limit, even with the right password", func(t *testing.T) {
+		h := setup(t, 100, 2)
+		requireStatus(t, postLoginFrom(t, h, ipA, login, wrong), http.StatusUnauthorized)
+		requireStatus(t, postLoginFrom(t, h, ipA, login, wrong), http.StatusUnauthorized)
+
+		resp := postLoginFrom(t, h, ipA, login, right)
+
+		// Иначе лимит работал бы подсказкой: 429 — пароль неверный, 200 — угадал.
+		requireProblem(t, resp, http.StatusTooManyRequests, api.ErrorCodeTooManyAttempts)
+		if sc := resp.Header.Values("Set-Cookie"); len(sc) != 0 {
+			t.Errorf("Set-Cookie = %q, want none: a blocked attempt must not start a session", sc)
+		}
+	})
+
+	t.Run("login case does not bypass the limit", func(t *testing.T) {
+		h := setup(t, 100, 2)
+		requireStatus(t, postLoginFrom(t, h, ipA, login, wrong), http.StatusUnauthorized)
+		requireStatus(t, postLoginFrom(t, h, ipA, login, wrong), http.StatusUnauthorized)
+
+		resp := postLoginFrom(t, h, ipA, "TEACHER", wrong)
+
+		requireProblem(t, resp, http.StatusTooManyRequests, api.ErrorCodeTooManyAttempts)
+	})
+
+	t.Run("another login from the same IP is not blocked", func(t *testing.T) {
+		h := setup(t, 100, 2)
+		requireStatus(t, postLoginFrom(t, h, ipA, login, wrong), http.StatusUnauthorized)
+		requireStatus(t, postLoginFrom(t, h, ipA, login, wrong), http.StatusUnauthorized)
+
+		requireStatus(t, postLoginFrom(t, h, ipA, "nobody", wrong), http.StatusUnauthorized)
+	})
+
+	t.Run("another IP is not blocked", func(t *testing.T) {
+		h := setup(t, 100, 2)
+		requireStatus(t, postLoginFrom(t, h, ipA, login, wrong), http.StatusUnauthorized)
+		requireStatus(t, postLoginFrom(t, h, ipA, login, wrong), http.StatusUnauthorized)
+
+		// Если IP теряется по дороге, все клиенты попадают в один счётчик,
+		// и чужие неудачи блокируют учителя.
+		requireStatus(t, postLoginFrom(t, h, ipB, login, right), http.StatusOK)
+	})
+
+	t.Run("successful login resets the counter", func(t *testing.T) {
+		h := setup(t, 100, 2)
+		requireStatus(t, postLoginFrom(t, h, ipA, login, wrong), http.StatusUnauthorized)
+		requireStatus(t, postLoginFrom(t, h, ipA, login, right), http.StatusOK)
+
+		requireStatus(t, postLoginFrom(t, h, ipA, login, wrong), http.StatusUnauthorized)
+		requireStatus(t, postLoginFrom(t, h, ipA, login, wrong), http.StatusUnauthorized)
+	})
+
+	t.Run("limit per IP across different logins", func(t *testing.T) {
+		h := setup(t, 3, 100)
+		for _, l := range []string{"user1", "user2", "user3"} {
+			requireStatus(t, postLoginFrom(t, h, ipA, l, wrong), http.StatusUnauthorized)
+		}
+
+		requireProblem(t, postLoginFrom(t, h, ipA, "user4", wrong), http.StatusTooManyRequests, api.ErrorCodeTooManyAttempts)
+		requireStatus(t, postLoginFrom(t, h, ipB, "user4", wrong), http.StatusUnauthorized)
+	})
+
+	t.Run("successful login does not reset the per-IP counter", func(t *testing.T) {
+		// Иначе перебор одного пароля по многим логинам можно было бы
+		// продлевать, перемежая попытки входом в свой аккаунт.
+		h := setup(t, 3, 100)
+		requireStatus(t, postLoginFrom(t, h, ipA, "user1", wrong), http.StatusUnauthorized)
+		requireStatus(t, postLoginFrom(t, h, ipA, login, right), http.StatusOK)
+		requireStatus(t, postLoginFrom(t, h, ipA, "user2", wrong), http.StatusUnauthorized)
+
+		requireProblem(t, postLoginFrom(t, h, ipA, "user3", wrong), http.StatusTooManyRequests, api.ErrorCodeTooManyAttempts)
 	})
 }

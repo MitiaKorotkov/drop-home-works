@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/account"
@@ -43,6 +44,16 @@ func (s *Server) GetSession(ctx context.Context, request api.GetSessionRequestOb
 }
 
 func (s *Server) Login(ctx context.Context, request api.LoginRequestObject) (api.LoginResponseObject, error) {
+	ip := clientIPFrom(ctx)
+	key := ip + "\x00" + strings.ToLower(request.Body.Login)
+	if !s.loginByIP.Allow(ip) || !s.loginByIPLogin.Allow(key) {
+		return api.Login429ApplicationProblemPlusJSONResponse{
+			TooManyRequestsApplicationProblemPlusJSONResponse: api.TooManyRequestsApplicationProblemPlusJSONResponse(
+				newProblem(http.StatusTooManyRequests, api.ErrorCodeTooManyAttempts, ""),
+			),
+		}, nil
+	}
+
 	user, err := account.Authenticate(ctx, s.q, request.Body.Login, request.Body.Password)
 	if errors.Is(err, account.ErrInvalidCredentials) {
 		return api.Login401ApplicationProblemPlusJSONResponse{
@@ -54,6 +65,7 @@ func (s *Server) Login(ctx context.Context, request api.LoginRequestObject) (api
 	if err != nil {
 		return nil, err
 	}
+	s.loginByIPLogin.Reset(key)
 
 	token, hash := session.NewToken()
 	err = s.q.CreateSession(ctx, db.CreateSessionParams{

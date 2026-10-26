@@ -63,7 +63,7 @@ func TestRequireAccess(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger, _ := newTestLogger()
-			s := NewServer(logger, nil)
+			s := NewServer(logger, nil, DefaultLoginLimits())
 
 			called := false
 			next := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error) {
