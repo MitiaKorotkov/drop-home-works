@@ -27,6 +27,10 @@ func writeProblem(w http.ResponseWriter, status int, code api.ErrorCode, detail 
 	json.NewEncoder(w).Encode(newProblem(status, code, detail))
 }
 
+func crossOriginDenied(w http.ResponseWriter, r *http.Request) {
+	writeProblem(w, http.StatusForbidden, api.ErrorCodeCrossOrigin, "")
+}
+
 func requestError(w http.ResponseWriter, r *http.Request, err error) {
 	writeProblem(w, http.StatusBadRequest, api.ErrorCodeValidationFailed, err.Error())
 }

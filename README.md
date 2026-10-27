@@ -4,7 +4,7 @@
 
 Бэкенд $-$ `Go + PostgreSQL`.
 
-Фронтенд (React SPA) пишется отдельно и работает по спецификации API.
+Фронтенд (React SPA) пишется отдельно и работает по спецификации API. Фронтенд при разработке обращается к API через прокси dev-сервера. Без неё фронтендер получит 403 cross_origin.
 
 - Требования $-$ [docs/decisions.md](docs/decisions.md)
 - Устройство базы $-$ [docs/database.md](docs/database.md)

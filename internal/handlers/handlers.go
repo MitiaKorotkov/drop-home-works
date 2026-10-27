@@ -34,7 +34,12 @@ type Server struct {
 }
 
 func NewServer(logger *slog.Logger, q *db.Queries, limits LoginLimits) *Server {
-	return &Server{logger: logger, q: q, loginByIP: limits.ByIP, loginByIPLogin: limits.ByIPLogin}
+	return &Server{
+		logger:         logger,
+		q:              q,
+		loginByIP:      limits.ByIP,
+		loginByIPLogin: limits.ByIPLogin,
+	}
 }
 
 func Register(mux *http.ServeMux, s *Server) {
@@ -49,10 +54,13 @@ func Register(mux *http.ServeMux, s *Server) {
 		},
 	)
 
+	cop := http.NewCrossOriginProtection()
+	cop.SetDenyHandler(http.HandlerFunc(crossOriginDenied))
+
 	api.HandlerWithOptions(si, api.StdHTTPServerOptions{
 		BaseURL:          "/api",
 		BaseRouter:       mux,
-		Middlewares:      []api.MiddlewareFunc{s.loadSession, loadClientIP},
+		Middlewares:      []api.MiddlewareFunc{s.loadSession, loadClientIP, cop.Handler},
 		ErrorHandlerFunc: requestError,
 	})
 }
