@@ -361,3 +361,123 @@ func TestUserBySession(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateStudent(t *testing.T) {
+	// setup — база с учителем (логин "teacher") и классом.
+	setup := func(t *testing.T) (*db.Queries, db.Class) {
+		t.Helper()
+		q := newQueries(t)
+		_, err := CreateTeacher(t.Context(), q, TeacherInput{
+			Login:     "teacher",
+			Password:  "Qwerty123!",
+			FirstName: "Мария",
+			LastName:  "Иванова",
+		})
+		if err != nil {
+			t.Fatalf("CreateTeacher: %v", err)
+		}
+		class, err := q.CreateClass(t.Context(), "7А")
+		if err != nil {
+			t.Fatalf("CreateClass: %v", err)
+		}
+		return q, class
+	}
+	valid := func(classID int64) StudentInput {
+		return StudentInput{
+			Login:     "Petrov.P",
+			Password:  "Student123!",
+			FirstName: " Пётр ",
+			LastName:  "Петров  ",
+			ClassID:   classID,
+		}
+	}
+
+	t.Run("created", func(t *testing.T) {
+		q, class := setup(t)
+
+		got, err := CreateStudent(t.Context(), q, valid(class.ID))
+		if err != nil {
+			t.Fatalf("CreateStudent: %v", err)
+		}
+		want := db.CreateStudentRow{ID: got.ID, FirstName: "Пётр", LastName: "Петров", Login: "petrov.p", ClassID: class.ID}
+		if got.ID <= 0 || got != want {
+			t.Errorf("CreateStudent = %+v, want %+v with id > 0: login in lower case, names without spaces around", got, want)
+		}
+
+		stored, err := q.GetUserByLogin(t.Context(), "petrov.p")
+		if err != nil {
+			t.Fatalf("GetUserByLogin(%q): %v", "petrov.p", err)
+		}
+		if stored.Role != db.UserRoleStudent {
+			t.Errorf("role = %q, want %q", stored.Role, db.UserRoleStudent)
+		}
+		good, err := password.Verify("Student123!", stored.PasswordHash)
+		if err != nil {
+			t.Fatalf("verify stored password hash: %v", err)
+		}
+		if !good {
+			t.Errorf("stored password hash does not match the password passed to CreateStudent")
+		}
+	})
+
+	t.Run("login taken", func(t *testing.T) {
+		q, class := setup(t)
+		if _, err := CreateStudent(t.Context(), q, valid(class.ID)); err != nil {
+			t.Fatalf("CreateStudent: %v", err)
+		}
+
+		for _, login := range []string{"petrov.p", "PETROV.P", "teacher"} {
+			in := valid(class.ID)
+			in.Login = login
+
+			_, err := CreateStudent(t.Context(), q, in)
+			if !errors.Is(err, ErrLoginTaken) {
+				t.Errorf("CreateStudent with login %q: error = %v, want ErrLoginTaken", login, err)
+			}
+		}
+	})
+
+	t.Run("unknown class", func(t *testing.T) {
+		q, class := setup(t)
+
+		_, err := CreateStudent(t.Context(), q, valid(class.ID+1000))
+		if !errors.Is(err, ErrClassNotFound) {
+			t.Fatalf("CreateStudent in class %d: error = %v, want ErrClassNotFound", class.ID+1000, err)
+		}
+	})
+
+	t.Run("invalid input", func(t *testing.T) {
+		q, class := setup(t)
+
+		for _, tt := range []struct {
+			name   string
+			modify func(in *StudentInput)
+		}{
+			{"bad login", func(in *StudentInput) { in.Login = "ab" }},
+			{"empty first name", func(in *StudentInput) { in.FirstName = "" }},
+			{"blank last name", func(in *StudentInput) { in.LastName = "   " }},
+			{"short password", func(in *StudentInput) { in.Password = "1234567" }},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				in := valid(class.ID)
+				tt.modify(&in)
+
+				_, err := CreateStudent(t.Context(), q, in)
+				if !errors.Is(err, ErrInvalidInput) {
+					t.Errorf("CreateStudent(%+v) error = %v, want ErrInvalidInput", in, err)
+				}
+			})
+		}
+	})
+
+	t.Run("database error", func(t *testing.T) {
+		pool := testdb.New(t)
+		q := db.New(pool)
+		pool.Close()
+
+		_, err := CreateStudent(t.Context(), q, valid(1))
+		if err == nil || errors.Is(err, ErrLoginTaken) || errors.Is(err, ErrClassNotFound) || errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("CreateStudent with the database closed: error = %v, want a server error, not ErrLoginTaken, ErrClassNotFound or ErrInvalidInput", err)
+		}
+	})
+}

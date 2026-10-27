@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/api"
 	"github.com/MitiaKorotkov/drop-home-works/internal/classes"
@@ -28,16 +27,12 @@ func (s *Server) CreateClass(ctx context.Context, request api.CreateClassRequest
 	class, err := classes.CreateClass(ctx, s.q, request.Body.Name)
 	if errors.Is(err, classes.ErrInvalidInput) {
 		return api.CreateClass400ApplicationProblemPlusJSONResponse{
-			BadRequestApplicationProblemPlusJSONResponse: api.BadRequestApplicationProblemPlusJSONResponse(
-				newProblem(http.StatusBadRequest, api.ErrorCodeValidationFailed, err.Error()),
-			),
+			BadRequestApplicationProblemPlusJSONResponse: badRequest(api.ErrorCodeValidationFailed, err.Error()),
 		}, nil
 	}
 	if errors.Is(err, classes.ErrNameTaken) {
 		return api.CreateClass409ApplicationProblemPlusJSONResponse{
-			ConflictApplicationProblemPlusJSONResponse: api.ConflictApplicationProblemPlusJSONResponse(
-				newProblem(http.StatusConflict, api.ErrorCodeClassNameTaken, ""),
-			),
+			ConflictApplicationProblemPlusJSONResponse: conflict(api.ErrorCodeClassNameTaken),
 		}, nil
 	}
 	if err != nil {

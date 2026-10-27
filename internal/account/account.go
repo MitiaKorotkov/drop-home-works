@@ -21,6 +21,7 @@ var (
 	ErrLoginTaken         = errors.New("login already taken")
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrNoSession          = errors.New("no session")
+	ErrClassNotFound      = errors.New("class not found")
 
 	loginRe   = regexp.MustCompile("^[a-z0-9._-]{3,32}$")
 	dummyHash = sync.OnceValue(func() string { return password.Hash("Qwerty123!") })
@@ -31,6 +32,14 @@ type TeacherInput struct {
 	Password  string
 	FirstName string
 	LastName  string
+}
+
+type StudentInput struct {
+	Login     string
+	Password  string
+	FirstName string
+	LastName  string
+	ClassID   int64
 }
 
 type User struct {
@@ -110,6 +119,46 @@ func CreateTeacher(ctx context.Context, q *db.Queries, in TeacherInput) (int64, 
 	}
 
 	return id, nil
+}
+
+func CreateStudent(ctx context.Context, q *db.Queries, in StudentInput) (db.CreateStudentRow, error) {
+	login, err := NormalizeLogin(in.Login)
+	if err != nil {
+		return db.CreateStudentRow{}, fmt.Errorf("login: %w", err)
+	}
+	firstName, err := NormalizeName(in.FirstName)
+	if err != nil {
+		return db.CreateStudentRow{}, fmt.Errorf("first name: %w", err)
+	}
+	lastName, err := NormalizeName(in.LastName)
+	if err != nil {
+		return db.CreateStudentRow{}, fmt.Errorf("last name: %w", err)
+	}
+	if err := ValidatePassword(in.Password); err != nil {
+		return db.CreateStudentRow{}, fmt.Errorf("password: %w", err)
+	}
+
+	row, err := q.CreateStudent(ctx, db.CreateStudentParams{
+		Login:        login,
+		PasswordHash: password.Hash(in.Password),
+		LastName:     lastName,
+		FirstName:    firstName,
+		ClassID:      in.ClassID,
+	})
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch {
+		case pgErr.Code == "23505" && pgErr.ConstraintName == "users_login_key":
+			return db.CreateStudentRow{}, ErrLoginTaken
+		case pgErr.Code == "23503" && pgErr.ConstraintName == "users_class_id_fkey":
+			return db.CreateStudentRow{}, ErrClassNotFound
+		}
+	}
+	if err != nil {
+		return db.CreateStudentRow{}, fmt.Errorf("insert student: %w", err)
+	}
+
+	return row, nil
 }
 
 func Authenticate(ctx context.Context, q *db.Queries, login, passwd string) (User, error) {

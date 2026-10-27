@@ -86,3 +86,30 @@ func TestCreateClassConstraints(t *testing.T) {
 		})
 	}
 }
+
+func TestClassExists(t *testing.T) {
+	q := newQueries(t)
+	class := mustCreateClass(t, q, "7А")
+
+	tests := []struct {
+		name string
+		id   int64
+		want bool
+	}{
+		{"existing class", class.ID, true},
+		// Класс в базе есть, но другой: запрос проверяет именно этот id.
+		{"unknown id", class.ID + 1000, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := q.ClassExists(t.Context(), tt.id)
+			if err != nil {
+				t.Fatalf("ClassExists(%d): %v", tt.id, err)
+			}
+			if got != tt.want {
+				t.Errorf("ClassExists(%d) = %v, want %v", tt.id, got, tt.want)
+			}
+		})
+	}
+}

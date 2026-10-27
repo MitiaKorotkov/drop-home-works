@@ -39,3 +39,21 @@ func (s *Server) responseError(w http.ResponseWriter, r *http.Request, err error
 	s.logger.Error("response error", "method", r.Method, "path", r.URL.Path, "error", err)
 	writeProblem(w, http.StatusInternalServerError, api.ErrorCodeInternalError, "")
 }
+
+func badRequest(code api.ErrorCode, detail string) api.BadRequestApplicationProblemPlusJSONResponse {
+	return api.BadRequestApplicationProblemPlusJSONResponse(
+		newProblem(http.StatusBadRequest, code, detail),
+	)
+}
+
+func conflict(code api.ErrorCode) api.ConflictApplicationProblemPlusJSONResponse {
+	return api.ConflictApplicationProblemPlusJSONResponse(
+		newProblem(http.StatusConflict, code, ""),
+	)
+}
+
+func notFound(code api.ErrorCode, detail string) api.NotFoundApplicationProblemPlusJSONResponse {
+	return api.NotFoundApplicationProblemPlusJSONResponse(
+		newProblem(http.StatusNotFound, code, detail),
+	)
+}

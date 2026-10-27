@@ -9,6 +9,47 @@ import (
 	"context"
 )
 
+const createStudent = `-- name: CreateStudent :one
+INSERT INTO users (role, login, password_hash, last_name, first_name, class_id)
+VALUES ('student', $1, $2, $3, $4, $5::bigint)
+RETURNING id, first_name, last_name, login, class_id::bigint AS class_id
+`
+
+type CreateStudentParams struct {
+	Login        string
+	PasswordHash string
+	LastName     string
+	FirstName    string
+	ClassID      int64
+}
+
+type CreateStudentRow struct {
+	ID        int64
+	FirstName string
+	LastName  string
+	Login     string
+	ClassID   int64
+}
+
+func (q *Queries) CreateStudent(ctx context.Context, arg CreateStudentParams) (CreateStudentRow, error) {
+	row := q.db.QueryRow(ctx, createStudent,
+		arg.Login,
+		arg.PasswordHash,
+		arg.LastName,
+		arg.FirstName,
+		arg.ClassID,
+	)
+	var i CreateStudentRow
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Login,
+		&i.ClassID,
+	)
+	return i, err
+}
+
 const createTeacher = `-- name: CreateTeacher :one
 INSERT INTO users (role, login, password_hash, last_name, first_name)
 VALUES ('teacher', $1, $2, $3, $4)
@@ -66,6 +107,47 @@ func (q *Queries) GetUserByLogin(ctx context.Context, login string) (GetUserByLo
 		&i.ClassName,
 	)
 	return i, err
+}
+
+const listClassStudents = `-- name: ListClassStudents :many
+SELECT id, first_name, last_name, login, class_id::bigint AS class_id
+FROM users
+WHERE class_id = $1::bigint
+ORDER BY last_name, first_name, id
+`
+
+type ListClassStudentsRow struct {
+	ID        int64
+	FirstName string
+	LastName  string
+	Login     string
+	ClassID   int64
+}
+
+func (q *Queries) ListClassStudents(ctx context.Context, classID int64) ([]ListClassStudentsRow, error) {
+	rows, err := q.db.Query(ctx, listClassStudents, classID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListClassStudentsRow
+	for rows.Next() {
+		var i ListClassStudentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FirstName,
+			&i.LastName,
+			&i.Login,
+			&i.ClassID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const teacherExists = `-- name: TeacherExists :one

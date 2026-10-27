@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const classExists = `-- name: ClassExists :one
+SELECT EXISTS(SELECT 1 FROM classes WHERE id = $1)
+`
+
+func (q *Queries) ClassExists(ctx context.Context, id int64) (bool, error) {
+	row := q.db.QueryRow(ctx, classExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const createClass = `-- name: CreateClass :one
 INSERT INTO classes (name) VALUES ($1)
 RETURNING id, name, created_at
