@@ -2,9 +2,11 @@
 
 CREATE TABLE classes (
     id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name       text NOT NULL UNIQUE CHECK (btrim(name) <> ''),
+    name       text NOT NULL CHECK (btrim(name) <> ''),
     created_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX classes_name_lower_key ON classes (lower(name COLLATE pg_c_utf8));
 
 CREATE TYPE user_role AS ENUM ('teacher', 'student');
 

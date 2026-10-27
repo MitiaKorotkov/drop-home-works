@@ -46,4 +46,4 @@ post:
       description: Доступно только учителю
     '409':
       $ref: ../components/responses/Conflict.yaml
-      description: Название занято
+      description: Название занято, регистр букв не учитывается

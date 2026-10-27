@@ -72,6 +72,7 @@ func TestCreateClass(t *testing.T) {
 		{"same name", "7А", "7А"},
 		// Повтор находится только после нормализации: в базе лежит «7А» без пробелов.
 		{"same name with spaces around", "7А", " 7А "},
+		{"same name in another case", "7Б", "7б"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			q := db.New(testdb.New(t))

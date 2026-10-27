@@ -33,7 +33,7 @@ func CreateClass(ctx context.Context, q *db.Queries, name string) (db.Class, err
 
 	class, err := q.CreateClass(ctx, name)
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "classes_name_key" {
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "classes_name_lower_key" {
 		return db.Class{}, ErrNameTaken
 	}
 	if err != nil {

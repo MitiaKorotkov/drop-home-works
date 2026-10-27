@@ -60,16 +60,6 @@ func TestListClasses(t *testing.T) {
 	})
 }
 
-func TestCreateClassDifferentCase(t *testing.T) {
-	q := newQueries(t)
-
-	mustCreateClass(t, q, "7Б")
-	_, err := q.CreateClass(t.Context(), "7б")
-	if err != nil {
-		t.Fatalf("CreateClass(%q) after %q: %v, want no error: names that differ only in case are different classes", "7б", "7Б", err)
-	}
-}
-
 func TestCreateClassConstraints(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -78,7 +68,8 @@ func TestCreateClassConstraints(t *testing.T) {
 		wantCode       string
 		wantConstraint string
 	}{
-		{"duplicate name", []string{"7А"}, "7А", "23505", "classes_name_key"},
+		{"duplicate name", []string{"7А"}, "7А", "23505", "classes_name_lower_key"},
+		{"same name in another case", []string{"7Б"}, "7б", "23505", "classes_name_lower_key"},
 		{"empty name", nil, "", "23514", "classes_name_check"},
 		{"space only", nil, " ", "23514", "classes_name_check"},
 	}

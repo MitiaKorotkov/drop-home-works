@@ -1,3 +1,6 @@
+Need to install the following packages:
+@redocly/cli@2.71.2
+Ok to proceed? (y) 
 openapi: 3.2.0
 info:
   title: Homeworks API
@@ -287,7 +290,7 @@ paths:
           description: Доступно только учителю
         '409':
           $ref: '#/components/responses/Conflict'
-          description: Название занято
+          description: Название занято, регистр букв не учитывается
   /classes/{classId}/students:
     parameters:
       - $ref: '#/components/parameters/classId'
