@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -25,18 +24,10 @@ func TestGetSession(t *testing.T) {
 		h, _, cookie, loginMe := loginTeacher(t)
 
 		resp := doRequest(t, h, http.MethodGet, "/api/session", cookie)
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			t.Fatalf("status = %d, want %d; body: %s", resp.StatusCode, http.StatusOK, body)
-		}
-		if ct := resp.Header.Get("Content-Type"); ct != "application/json" {
-			t.Errorf("Content-Type = %q, want %q", ct, "application/json")
-		}
+
 		var me api.Me
-		if err := json.NewDecoder(resp.Body).Decode(&me); err != nil {
-			t.Fatalf("decode response body: %v", err)
-		}
-		// DeepEqual сравнивает значения под указателями (Class), а не адреса.
+		requireJSON(t, resp, http.StatusOK, &me)
+		// NOTE: DeepEqual сравнивает значения под указателями (Class), а не адреса
 		if !reflect.DeepEqual(me, loginMe) {
 			t.Errorf("GET /api/session = %+v, want %+v: the same user as in the login response", me, loginMe)
 		}

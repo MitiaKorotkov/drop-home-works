@@ -104,8 +104,6 @@ func TestRequireAccess(t *testing.T) {
 
 // Сквозная проверка через Register: requireAccess подключён и видит сессию,
 // которую положил loadSession. Сама логика ролей проверена в TestRequireAccess.
-// Обработчики учителя и ученика ещё не написаны: если запрос дойдёт до
-// встроенной заглушки StrictServerInterface, она запаникует и ответ будет 500.
 func TestAccessThroughServer(t *testing.T) {
 	t.Run("no cookie on a teacher endpoint", func(t *testing.T) {
 		h, _ := newTestServer(t)

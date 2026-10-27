@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -42,19 +41,7 @@ func TestRegister(t *testing.T) {
 			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
 			httpserver.New(mux, logger).Handler.ServeHTTP(rr, req)
 
-			if rr.Code != tt.wantStatus {
-				t.Errorf("status = %d, want status = %d", rr.Code, tt.wantStatus)
-			}
-			if rr.Header().Get("Content-Type") != "application/problem+json" {
-				t.Errorf("Content-Type = %q, want %q", rr.Header().Get("Content-Type"), "application/problem+json")
-			}
-			var p api.Problem
-			if err := json.Unmarshal(rr.Body.Bytes(), &p); err != nil {
-				t.Fatalf("Error when unmarshal response body: %v", err)
-			}
-			if p.Code != tt.wantCode || p.Status != int32(tt.wantStatus) {
-				t.Errorf("code = %q, want code = %q; status = %d, want status = %d", p.Code, tt.wantCode, p.Status, int32(tt.wantStatus))
-			}
+			requireProblem(t, rr.Result(), tt.wantStatus, tt.wantCode)
 		})
 	}
 }
