@@ -594,3 +594,91 @@ func TestUpdateStudent(t *testing.T) {
 		}
 	})
 }
+
+func TestSetStudentPassword(t *testing.T) {
+	const oldPassword, newPassword = "Student123!", "NewPass456?"
+
+	// setup — база с учителем, классом и учеником petrov со старым паролем.
+	setup := func(t *testing.T) (q *db.Queries, teacherID, studentID int64) {
+		t.Helper()
+		q = newQueries(t)
+		teacherID, err := CreateTeacher(t.Context(), q, TeacherInput{
+			Login:     "teacher",
+			Password:  "Qwerty123!",
+			FirstName: "Мария",
+			LastName:  "Иванова",
+		})
+		if err != nil {
+			t.Fatalf("CreateTeacher: %v", err)
+		}
+		class, err := q.CreateClass(t.Context(), "7А")
+		if err != nil {
+			t.Fatalf("CreateClass: %v", err)
+		}
+		student, err := CreateStudent(t.Context(), q, StudentInput{
+			Login:     "petrov",
+			Password:  oldPassword,
+			FirstName: "Пётр",
+			LastName:  "Петров",
+			ClassID:   class.ID,
+		})
+		if err != nil {
+			t.Fatalf("CreateStudent: %v", err)
+		}
+		return q, teacherID, student.ID
+	}
+	requireAuth := func(t *testing.T, q *db.Queries, login, passwd string, wantErr error) {
+		t.Helper()
+		if _, err := Authenticate(t.Context(), q, login, passwd); !errors.Is(err, wantErr) {
+			t.Errorf("Authenticate(%q, %q) error = %v, want %v", login, passwd, err, wantErr)
+		}
+	}
+
+	t.Run("changed", func(t *testing.T) {
+		q, _, studentID := setup(t)
+
+		if err := SetStudentPassword(t.Context(), q, studentID, newPassword); err != nil {
+			t.Fatalf("SetStudentPassword: %v", err)
+		}
+
+		requireAuth(t, q, "petrov", newPassword, nil)
+		requireAuth(t, q, "petrov", oldPassword, ErrInvalidCredentials)
+	})
+
+	t.Run("rejected", func(t *testing.T) {
+		// Ни один случай ничего не меняет, поэтому база у всех общая.
+		q, teacherID, studentID := setup(t)
+
+		for _, tt := range []struct {
+			name    string
+			id      int64
+			passwd  string
+			wantErr error
+		}{
+			{"too short", studentID, "1234567", ErrInvalidInput},
+			{"too long", studentID, strings.Repeat("я", 129), ErrInvalidInput},
+			{"unknown student", studentID + 1000, newPassword, ErrStudentNotFound},
+			{"teacher", teacherID, newPassword, ErrStudentNotFound},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				if err := SetStudentPassword(t.Context(), q, tt.id, tt.passwd); !errors.Is(err, tt.wantErr) {
+					t.Errorf("SetStudentPassword(id %d) error = %v, want %v", tt.id, err, tt.wantErr)
+				}
+			})
+		}
+
+		requireAuth(t, q, "petrov", oldPassword, nil)
+		requireAuth(t, q, "teacher", "Qwerty123!", nil)
+	})
+
+	t.Run("database error", func(t *testing.T) {
+		pool := testdb.New(t)
+		q := db.New(pool)
+		pool.Close()
+
+		err := SetStudentPassword(t.Context(), q, 1, newPassword)
+		if err == nil || errors.Is(err, ErrStudentNotFound) || errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("SetStudentPassword with the database closed: error = %v, want a server error, not ErrStudentNotFound or ErrInvalidInput", err)
+		}
+	})
+}

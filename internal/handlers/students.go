@@ -111,3 +111,21 @@ func (s *Server) DeleteStudent(ctx context.Context, request api.DeleteStudentReq
 
 	return api.DeleteStudent204Response{}, nil
 }
+
+func (s *Server) SetStudentPassword(ctx context.Context, request api.SetStudentPasswordRequestObject) (api.SetStudentPasswordResponseObject, error) {
+	err := account.SetStudentPassword(ctx, s.q, request.StudentId, request.Body.Password)
+	switch {
+	case errors.Is(err, account.ErrInvalidInput):
+		return api.SetStudentPassword400ApplicationProblemPlusJSONResponse{
+			BadRequestApplicationProblemPlusJSONResponse: badRequest(api.ErrorCodeValidationFailed, err.Error()),
+		}, nil
+	case errors.Is(err, account.ErrStudentNotFound):
+		return api.SetStudentPassword404ApplicationProblemPlusJSONResponse{
+			NotFoundApplicationProblemPlusJSONResponse: notFound(api.ErrorCodeNotFound, ""),
+		}, nil
+	case err != nil:
+		return nil, err
+	}
+
+	return api.SetStudentPassword204Response{}, nil
+}

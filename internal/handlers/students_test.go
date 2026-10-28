@@ -177,6 +177,10 @@ func TestStudentsDatabaseError(t *testing.T) {
 	if resp, err := s.DeleteStudent(t.Context(), api.DeleteStudentRequestObject{StudentId: 1}); err == nil {
 		t.Errorf("DeleteStudent with the database closed = %+v, nil; want an error, so that the client gets 500", resp)
 	}
+	setPassword := api.SetStudentPasswordRequestObject{StudentId: 1, Body: &api.SetPassword{Password: "NewPass456?"}}
+	if resp, err := s.SetStudentPassword(t.Context(), setPassword); err == nil {
+		t.Errorf("SetStudentPassword with the database closed = %+v, nil; want an error, so that the client gets 500", resp)
+	}
 }
 
 const studentPassword = "Student123!"
@@ -348,5 +352,65 @@ func TestDeleteStudent(t *testing.T) {
 		if len(list) != 1 {
 			t.Errorf("class 7А = %+v, want the student to stay", list)
 		}
+	})
+}
+
+func TestSetStudentPassword(t *testing.T) {
+	const newPassword = "NewPass456?"
+	passwordPath := func(id int64) string { return studentPath(id) + "/password" }
+	// loginStudent входит под учеником и возвращает его cookie.
+	loginStudent := func(t *testing.T, f studentFixture) *http.Cookie {
+		t.Helper()
+		resp := postLogin(t, f.h, "petrov", studentPassword)
+		requireLoggedIn(t, f.q, resp, f.student.ID)
+		return resp.Cookies()[0]
+	}
+
+	t.Run("changed, sessions ended", func(t *testing.T) {
+		f := newStudentFixture(t)
+		studentCookie := loginStudent(t, f)
+
+		resp := doJSON(t, f.h, http.MethodPut, passwordPath(f.student.ID), api.SetPassword{Password: newPassword}, f.teacher)
+		if resp.StatusCode != http.StatusNoContent {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("status = %d, want %d; body: %s", resp.StatusCode, http.StatusNoContent, body)
+		}
+
+		// Старая сессия ученика завершена, старый пароль не подходит, новый подходит.
+		requireProblem(t, doRequest(t, f.h, http.MethodGet, "/api/session", studentCookie), http.StatusUnauthorized, api.ErrorCodeUnauthorized)
+		requireProblem(t, postLogin(t, f.h, "petrov", studentPassword), http.StatusUnauthorized, api.ErrorCodeInvalidCredentials)
+		requireLoggedIn(t, f.q, postLogin(t, f.h, "petrov", newPassword), f.student.ID)
+		// Сессия учителя, который менял пароль, жива.
+		requireJSON(t, doRequest(t, f.h, http.MethodGet, "/api/session", f.teacher), http.StatusOK, &api.Me{})
+	})
+
+	t.Run("rejected", func(t *testing.T) {
+		// Ни один запрос ничего не меняет, поэтому сервер у всех случаев общий.
+		f := newStudentFixture(t)
+		studentCookie := loginStudent(t, f)
+
+		for _, tt := range []struct {
+			name       string
+			id         int64
+			body       any
+			wantStatus int
+			wantCode   api.ErrorCode
+		}{
+			{"too short", f.student.ID, api.SetPassword{Password: "1234567"}, http.StatusBadRequest, api.ErrorCodeValidationFailed},
+			{"no password field", f.student.ID, map[string]any{}, http.StatusBadRequest, api.ErrorCodeValidationFailed},
+			{"unknown student", f.student.ID + 1000, api.SetPassword{Password: newPassword}, http.StatusNotFound, api.ErrorCodeNotFound},
+			{"teacher", f.teacherID, api.SetPassword{Password: newPassword}, http.StatusNotFound, api.ErrorCodeNotFound},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				resp := doJSON(t, f.h, http.MethodPut, passwordPath(tt.id), tt.body, f.teacher)
+
+				requireProblem(t, resp, tt.wantStatus, tt.wantCode)
+			})
+		}
+
+		// Сессии ученика и учителя живы, пароль ученика прежний.
+		requireJSON(t, doRequest(t, f.h, http.MethodGet, "/api/session", studentCookie), http.StatusOK, &api.Me{})
+		requireJSON(t, doRequest(t, f.h, http.MethodGet, "/api/session", f.teacher), http.StatusOK, &api.Me{})
+		requireLoggedIn(t, f.q, postLogin(t, f.h, "petrov", studentPassword), f.student.ID)
 	})
 }

@@ -239,7 +239,7 @@ func UserBySession(ctx context.Context, q *db.Queries, tokenHash []byte) (User, 
 
 func UpdateStudent(ctx context.Context, q *db.Queries, id int64, in StudentUpdate) (db.UpdateStudentRow, error) {
 	if in.FirstName == nil && in.LastName == nil && in.ClassID == nil {
-		return db.UpdateStudentRow{}, fmt.Errorf("%w: nothing to updrte", ErrInvalidInput)
+		return db.UpdateStudentRow{}, fmt.Errorf("%w: nothing to update", ErrInvalidInput)
 	}
 
 	firstName, err := normalizeOptionalName(in.FirstName)
@@ -270,4 +270,24 @@ func UpdateStudent(ctx context.Context, q *db.Queries, id int64, in StudentUpdat
 	}
 
 	return row, nil
+}
+
+func SetStudentPassword(ctx context.Context, q *db.Queries, id int64, passwd string) error {
+	if err := ValidatePassword(passwd); err != nil {
+		return fmt.Errorf("validate password: %w", err)
+	}
+
+	hash := password.Hash(passwd)
+	ok, err := q.SetStudentPassword(ctx, db.SetStudentPasswordParams{
+		ID:           id,
+		PasswordHash: hash,
+	})
+	if err != nil {
+		return fmt.Errorf("set student password: %w", err)
+	}
+	if !ok {
+		return ErrStudentNotFound
+	}
+
+	return nil
 }

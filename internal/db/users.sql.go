@@ -163,6 +163,30 @@ func (q *Queries) ListClassStudents(ctx context.Context, classID int64) ([]ListC
 	return items, nil
 }
 
+const setStudentPassword = `-- name: SetStudentPassword :one
+WITH updated AS (
+    UPDATE users SET password_hash = $2
+    WHERE id = $1 AND role = 'student'
+    RETURNING id
+), ended AS (
+    DELETE FROM sessions
+    WHERE user_id IN (SELECT id FROM updated)
+)
+SELECT EXISTS (SELECT 1 FROM updated) AS updated
+`
+
+type SetStudentPasswordParams struct {
+	ID           int64
+	PasswordHash string
+}
+
+func (q *Queries) SetStudentPassword(ctx context.Context, arg SetStudentPasswordParams) (bool, error) {
+	row := q.db.QueryRow(ctx, setStudentPassword, arg.ID, arg.PasswordHash)
+	var updated bool
+	err := row.Scan(&updated)
+	return updated, err
+}
+
 const teacherExists = `-- name: TeacherExists :one
 SELECT EXISTS (SELECT 1 FROM users WHERE role = 'teacher')
 `

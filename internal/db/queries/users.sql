@@ -34,3 +34,14 @@ RETURNING id, first_name, last_name, login, class_id::bigint AS class_id;
 -- name: DeleteStudent :execrows
 DELETE FROM users
 WHERE id = $1 AND role = 'student';
+
+-- name: SetStudentPassword :one
+WITH updated AS (
+    UPDATE users SET password_hash = $2
+    WHERE id = $1 AND role = 'student'
+    RETURNING id
+), ended AS (
+    DELETE FROM sessions
+    WHERE user_id IN (SELECT id FROM updated)
+)
+SELECT EXISTS (SELECT 1 FROM updated) AS updated;

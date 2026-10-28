@@ -86,7 +86,7 @@ go test -race ./...
 Спецификация — источник истины: любое изменение API сначала вносится в [api/openapi.yaml](api/openapi.yaml). После правки:
 
 ```bash
-npx @redocly/cli bundle > ./api/dist/openapi.yaml                      # собрать спецификацию в один файл
+npx --yes @redocly/cli bundle > ./api/dist/openapi.yaml                # собрать спецификацию в один файл
 go generate ./...                                                      # обновить internal/api/api.gen.go
 npx @redocly/cli build-docs api/openapi.yaml -o ./api/dist/docs.html   # обновить HTML-документацию
 ```

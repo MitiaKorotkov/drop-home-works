@@ -4,6 +4,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/db"
 	"github.com/jackc/pgx/v5"
@@ -281,5 +282,79 @@ func TestDeleteStudent(t *testing.T) {
 				t.Errorf("GetUserByLogin(%q): %v; want the user to stay", login, err)
 			}
 		}
+	})
+}
+
+func TestSetStudentPassword(t *testing.T) {
+	// setup — две сессии ученика и одна сессия учителя.
+	setup := func(t *testing.T) testUsers {
+		t.Helper()
+		u := newTestUsers(t)
+		expires := time.Now().Add(time.Hour)
+		mustCreateSession(t, u.q, []byte("student-phone"), u.studentID, expires)
+		mustCreateSession(t, u.q, []byte("student-laptop"), u.studentID, expires)
+		mustCreateSession(t, u.q, []byte("teacher"), u.teacherID, expires)
+		return u
+	}
+	requireSession := func(t *testing.T, q *db.Queries, hash string) {
+		t.Helper()
+		if _, err := q.GetSessionUser(t.Context(), []byte(hash)); err != nil {
+			t.Fatalf("GetSessionUser(%q): %v; want the session to stay", hash, err)
+		}
+	}
+	requireHash := func(t *testing.T, q *db.Queries, login, want string) {
+		t.Helper()
+		u, err := q.GetUserByLogin(t.Context(), login)
+		if err != nil {
+			t.Fatalf("GetUserByLogin(%q): %v", login, err)
+		}
+		if u.PasswordHash != want {
+			t.Errorf("password hash of %q = %q, want %q", login, u.PasswordHash, want)
+		}
+	}
+
+	t.Run("student", func(t *testing.T) {
+		u := setup(t)
+
+		updated, err := u.q.SetStudentPassword(t.Context(), db.SetStudentPasswordParams{ID: u.studentID, PasswordHash: "new-hash"})
+		if err != nil {
+			t.Fatalf("SetStudentPassword: %v", err)
+		}
+		if !updated {
+			t.Fatalf("SetStudentPassword(student) = false, want true")
+		}
+
+		requireHash(t, u.q, "student", "new-hash")
+		requireNoSession(t, u.q, []byte("student-phone"))
+		requireNoSession(t, u.q, []byte("student-laptop"))
+		requireSession(t, u.q, "teacher")
+	})
+
+	t.Run("not a student", func(t *testing.T) {
+		// Ни один вызов ничего не меняет, поэтому база общая.
+		u := setup(t)
+
+		for _, tt := range []struct {
+			name string
+			id   int64
+		}{
+			{"unknown id", u.studentID + 1000},
+			// Если удалять сессии по user_id = $1 без оглядки на UPDATE,
+			// пароль учителя не сменится, а сессии учителя пропадут.
+			{"teacher", u.teacherID},
+		} {
+			updated, err := u.q.SetStudentPassword(t.Context(), db.SetStudentPasswordParams{ID: tt.id, PasswordHash: "new-hash"})
+			if err != nil {
+				t.Fatalf("%s: SetStudentPassword(id %d): %v", tt.name, tt.id, err)
+			}
+			if updated {
+				t.Errorf("%s: SetStudentPassword(id %d) = true, want false: there is no such student", tt.name, tt.id)
+			}
+		}
+
+		requireHash(t, u.q, "teacher", "teacher-hash")
+		requireHash(t, u.q, "student", "student-hash")
+		requireSession(t, u.q, "teacher")
+		requireSession(t, u.q, "student-phone")
 	})
 }
