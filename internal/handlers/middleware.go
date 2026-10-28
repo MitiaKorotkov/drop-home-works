@@ -10,6 +10,9 @@ import (
 	"github.com/MitiaKorotkov/drop-home-works/internal/account"
 	"github.com/MitiaKorotkov/drop-home-works/internal/api"
 	"github.com/MitiaKorotkov/drop-home-works/internal/session"
+	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/getkin/kin-openapi/routers"
 )
 
 type sessionKey struct{}
@@ -83,4 +86,36 @@ func loadClientIP(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), clientIPKey{}, clientIP(r))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func (s *Server) validateRequest(router routers.Router) api.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			route, pathParams, err := router.FindRoute(r)
+			if err != nil {
+				s.logger.Error("find route", "error", err, "method", r.Method, "path", r.URL.Path)
+				writeProblem(w, http.StatusInternalServerError, api.ErrorCodeInternalError, "")
+				return
+			}
+
+			opts := &openapi3filter.Options{
+				AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
+				ExcludeRequestBody: route.Operation.OperationID == "UploadMySubmission" || route.Operation.OperationID == "UploadAssignmentFile",
+			}
+			opts.WithCustomSchemaErrorFunc(func(err *openapi3.SchemaError) string { return err.Reason })
+
+			err = openapi3filter.ValidateRequest(r.Context(), &openapi3filter.RequestValidationInput{
+				Request:    r,
+				PathParams: pathParams,
+				Route:      route,
+				Options:    opts,
+			})
+			if err != nil {
+				writeProblem(w, http.StatusBadRequest, api.ErrorCodeValidationFailed, err.Error())
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

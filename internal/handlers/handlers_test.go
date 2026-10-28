@@ -39,6 +39,9 @@ func TestRegister(t *testing.T) {
 			Register(mux, NewServer(logger, nil, DefaultLoginLimits()))
 			rr := httptest.NewRecorder()
 			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			if tt.body != "" {
+				req.Header.Set("Content-Type", "application/json")
+			}
 			httpserver.New(mux, logger).Handler.ServeHTTP(rr, req)
 
 			requireProblem(t, rr.Result(), tt.wantStatus, tt.wantCode)

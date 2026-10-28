@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/account"
@@ -37,6 +38,21 @@ func doJSON(t *testing.T, h http.Handler, method, target string, body any, cooki
 	req.Header.Set("Content-Type", "application/json")
 	if cookie != nil {
 		req.AddCookie(cookie)
+	}
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	return rr.Result()
+}
+
+// doRaw отправляет тело как есть, с заданным Content-Type. Пустой contentType — без заголовка.
+func doRaw(t *testing.T, h http.Handler, method, target, contentType, body string) *http.Response {
+	t.Helper()
+
+	req := httptest.NewRequest(method, target, strings.NewReader(body))
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 
 	rr := httptest.NewRecorder()
@@ -166,6 +182,18 @@ func newTestServerWithLimits(t *testing.T, limits LoginLimits) (http.Handler, *p
 	return httpserver.New(mux, logger).Handler, pool
 }
 
+// newTestServerWithoutDB — сервер без базы, для запросов, которые отклоняются
+// раньше обращения к ней. Если запрос всё же дойдёт до базы, будет паника и 500.
+func newTestServerWithoutDB(t *testing.T) (http.Handler, *bytes.Buffer) {
+	t.Helper()
+
+	logger, logs := newTestLogger()
+	mux := http.NewServeMux()
+	Register(mux, NewServer(logger, nil, DefaultLoginLimits()))
+
+	return httpserver.New(mux, logger).Handler, logs
+}
+
 func newTestServer(t *testing.T) (http.Handler, *pgxpool.Pool) {
 	t.Helper()
 	return newTestServerWithLimits(t, DefaultLoginLimits())
@@ -201,6 +229,7 @@ func postLoginFrom(t *testing.T, h http.Handler, remoteAddr, login, passwd strin
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/session", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	if remoteAddr != "" {
 		req.RemoteAddr = remoteAddr
 	}

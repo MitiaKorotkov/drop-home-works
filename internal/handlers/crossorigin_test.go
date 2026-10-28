@@ -53,6 +53,9 @@ func TestCrossOriginProtection(t *testing.T) {
 			}
 			// Абсолютный URL задаёт заголовок Host: school.example.
 			req := httptest.NewRequest(tt.method, "https://school.example/api/session", body)
+			if body != nil {
+				req.Header.Set("Content-Type", "application/json")
+			}
 			if tt.secFetchSite != "" {
 				req.Header.Set("Sec-Fetch-Site", tt.secFetchSite)
 			}

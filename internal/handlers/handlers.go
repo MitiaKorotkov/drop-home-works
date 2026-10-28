@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/MitiaKorotkov/drop-home-works/internal/api"
 	"github.com/MitiaKorotkov/drop-home-works/internal/db"
 	"github.com/MitiaKorotkov/drop-home-works/internal/ratelimit"
+	"github.com/getkin/kin-openapi/routers/gorillamux"
 )
 
 type LoginLimits struct {
@@ -57,10 +59,20 @@ func Register(mux *http.ServeMux, s *Server) {
 	cop := http.NewCrossOriginProtection()
 	cop.SetDenyHandler(http.HandlerFunc(crossOriginDenied))
 
+	doc, err := api.GetSpec()
+	if err != nil {
+		panic(fmt.Sprintf("get spec: %v", err))
+	}
+	router, err := gorillamux.NewRouter(doc)
+	if err != nil {
+		panic(fmt.Sprintf("new router:e %v", err))
+	}
+	validate := s.validateRequest(router)
+
 	api.HandlerWithOptions(si, api.StdHTTPServerOptions{
 		BaseURL:          "/api",
 		BaseRouter:       mux,
-		Middlewares:      []api.MiddlewareFunc{s.loadSession, loadClientIP, cop.Handler},
+		Middlewares:      []api.MiddlewareFunc{s.loadSession, loadClientIP, validate, cop.Handler},
 		ErrorHandlerFunc: requestError,
 	})
 }
