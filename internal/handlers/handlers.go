@@ -65,7 +65,7 @@ func Register(mux *http.ServeMux, s *Server) {
 	}
 	router, err := gorillamux.NewRouter(doc)
 	if err != nil {
-		panic(fmt.Sprintf("new router:e %v", err))
+		panic(fmt.Sprintf("new router: %v", err))
 	}
 	validate := s.validateRequest(router)
 

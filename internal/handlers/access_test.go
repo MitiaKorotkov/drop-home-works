@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/MitiaKorotkov/drop-home-works/internal/account"
@@ -30,6 +31,61 @@ func TestOperationAccessComplete(t *testing.T) {
 		if !operations[name] {
 			t.Errorf("operationAccess has a rule for %q, but there is no such operation: a typo or the operation was removed from the spec", name)
 		}
+	}
+}
+
+// Правила доступа сверяются с тем, что обещает спецификация:
+//   - security: [] — операция открыта всем;
+//   - тег auth — любому вошедшему;
+//   - тег student — только ученику;
+//   - остальные теги — только учителю.
+//
+// Вместе с TestRequireAccess это проверяет отказ ученику на каждом эндпоинте
+// учителя и учителю на каждом эндпоинте ученика.
+func TestOperationAccessMatchesSpec(t *testing.T) {
+	names := map[access]string{
+		public:      "public",
+		anyUser:     "anyUser",
+		teacherOnly: "teacherOnly",
+		studentOnly: "studentOnly",
+	}
+
+	doc, err := api.GetSpec()
+	if err != nil {
+		t.Fatalf("GetSpec: %v", err)
+	}
+	// Операции без своего security наследуют общее. Без него они были бы открыты всем.
+	if len(doc.Security) == 0 {
+		t.Fatal("the spec has no top-level security: operations without their own security are public")
+	}
+
+	checked := 0
+	for path, item := range doc.Paths.Map() {
+		for method, op := range item.Operations() {
+			checked++
+
+			want := teacherOnly
+			switch {
+			case op.Security != nil && len(*op.Security) == 0:
+				want = public
+			case slices.Contains(op.Tags, "auth"):
+				want = anyUser
+			case slices.Contains(op.Tags, "student"):
+				want = studentOnly
+			}
+
+			got, ok := operationAccess[op.OperationID]
+			if !ok {
+				t.Errorf("%s %s: operation %s has no rule in operationAccess", method, path, op.OperationID)
+				continue
+			}
+			if got != want {
+				t.Errorf("%s %s: operation %s is %s, the spec says %s", method, path, op.OperationID, names[got], names[want])
+			}
+		}
+	}
+	if checked != len(operationAccess) {
+		t.Errorf("checked %d operations from the spec, operationAccess has %d rules", checked, len(operationAccess))
 	}
 }
 
