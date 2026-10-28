@@ -481,3 +481,116 @@ func TestCreateStudent(t *testing.T) {
 		}
 	})
 }
+
+func TestUpdateStudent(t *testing.T) {
+	// setup — база с учителем, классами 7А и 8А и учеником Петровым Петром в 7А.
+	setup := func(t *testing.T) (q *db.Queries, teacherID int64, student db.CreateStudentRow, other db.Class) {
+		t.Helper()
+		q = newQueries(t)
+		teacherID, err := CreateTeacher(t.Context(), q, TeacherInput{
+			Login:     "teacher",
+			Password:  "Qwerty123!",
+			FirstName: "Мария",
+			LastName:  "Иванова",
+		})
+		if err != nil {
+			t.Fatalf("CreateTeacher: %v", err)
+		}
+		class, err := q.CreateClass(t.Context(), "7А")
+		if err != nil {
+			t.Fatalf("CreateClass(7А): %v", err)
+		}
+		other, err = q.CreateClass(t.Context(), "8А")
+		if err != nil {
+			t.Fatalf("CreateClass(8А): %v", err)
+		}
+		student, err = CreateStudent(t.Context(), q, StudentInput{
+			Login:     "petrov",
+			Password:  "Student123!",
+			FirstName: "Пётр",
+			LastName:  "Петров",
+			ClassID:   class.ID,
+		})
+		if err != nil {
+			t.Fatalf("CreateStudent: %v", err)
+		}
+		return q, teacherID, student, other
+	}
+
+	t.Run("rename, spaces trimmed", func(t *testing.T) {
+		q, _, student, _ := setup(t)
+
+		got, err := UpdateStudent(t.Context(), q, student.ID, StudentUpdate{FirstName: new("  Павел "), LastName: new("Сидоров ")})
+		if err != nil {
+			t.Fatalf("UpdateStudent: %v", err)
+		}
+		want := db.UpdateStudentRow{ID: student.ID, FirstName: "Павел", LastName: "Сидоров", Login: "petrov", ClassID: student.ClassID}
+		if got != want {
+			t.Errorf("UpdateStudent = %+v, want %+v", got, want)
+		}
+	})
+
+	t.Run("transfer, names kept", func(t *testing.T) {
+		q, _, student, other := setup(t)
+
+		got, err := UpdateStudent(t.Context(), q, student.ID, StudentUpdate{ClassID: &other.ID})
+		if err != nil {
+			t.Fatalf("UpdateStudent: %v", err)
+		}
+		want := db.UpdateStudentRow{ID: student.ID, FirstName: "Пётр", LastName: "Петров", Login: "petrov", ClassID: other.ID}
+		if got != want {
+			t.Errorf("UpdateStudent = %+v, want %+v", got, want)
+		}
+	})
+
+	t.Run("rejected", func(t *testing.T) {
+		// Ни один случай ничего не меняет, поэтому база у всех общая.
+		q, teacherID, student, _ := setup(t)
+
+		for _, tt := range []struct {
+			name    string
+			id      int64
+			in      StudentUpdate
+			wantErr error
+		}{
+			{"nothing to update", student.ID, StudentUpdate{}, ErrInvalidInput},
+			{"blank first name", student.ID, StudentUpdate{FirstName: new("   ")}, ErrInvalidInput},
+			{"too long last name", student.ID, StudentUpdate{LastName: new(strings.Repeat("я", 31))}, ErrInvalidInput},
+			{"unknown class", student.ID, StudentUpdate{ClassID: new(student.ClassID + 1000)}, ErrClassNotFound},
+			{"unknown student", student.ID + 1000, StudentUpdate{FirstName: new("Павел")}, ErrStudentNotFound},
+			{"teacher", teacherID, StudentUpdate{FirstName: new("Павел")}, ErrStudentNotFound},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				row, err := UpdateStudent(t.Context(), q, tt.id, tt.in)
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("UpdateStudent(id %d) = %+v, %v; want %v", tt.id, row, err, tt.wantErr)
+				}
+			})
+		}
+
+		stored, err := q.GetUserByLogin(t.Context(), "petrov")
+		if err != nil {
+			t.Fatalf("GetUserByLogin(%q): %v", "petrov", err)
+		}
+		if stored.FirstName != "Пётр" || stored.LastName != "Петров" {
+			t.Errorf("student's name after rejected updates = %q %q, want %q %q", stored.FirstName, stored.LastName, "Пётр", "Петров")
+		}
+		if stored.ClassID == nil {
+			t.Fatalf("student's class after rejected updates is nil, want %d", student.ClassID)
+		}
+		if *stored.ClassID != student.ClassID {
+			t.Errorf("student's class after rejected updates = %d, want %d", *stored.ClassID, student.ClassID)
+		}
+	})
+
+	t.Run("database error", func(t *testing.T) {
+		pool := testdb.New(t)
+		q := db.New(pool)
+		pool.Close()
+
+		_, err := UpdateStudent(t.Context(), q, 1, StudentUpdate{FirstName: new("Павел")})
+		if err == nil || errors.Is(err, ErrStudentNotFound) || errors.Is(err, ErrClassNotFound) || errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("UpdateStudent with the database closed: error = %v, want a server error, not ErrStudentNotFound, ErrClassNotFound or ErrInvalidInput", err)
+		}
+	})
+}

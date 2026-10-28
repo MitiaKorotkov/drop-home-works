@@ -75,6 +75,19 @@ func (q *Queries) CreateTeacher(ctx context.Context, arg CreateTeacherParams) (i
 	return id, err
 }
 
+const deleteStudent = `-- name: DeleteStudent :execrows
+DELETE FROM users
+WHERE id = $1 AND role = 'student'
+`
+
+func (q *Queries) DeleteStudent(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteStudent, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getUserByLogin = `-- name: GetUserByLogin :one
 SELECT u.id, u.role, u.login, u.password_hash, u.first_name, u.last_name, u.class_id, c.name AS class_name
 FROM users u
@@ -159,4 +172,46 @@ func (q *Queries) TeacherExists(ctx context.Context) (bool, error) {
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const updateStudent = `-- name: UpdateStudent :one
+UPDATE users
+SET first_name = coalesce($1, first_name),
+    last_name = coalesce($2, last_name),
+    class_id = coalesce($3, class_id)
+WHERE id = $4 AND role = 'student'
+RETURNING id, first_name, last_name, login, class_id::bigint AS class_id
+`
+
+type UpdateStudentParams struct {
+	FirstName *string
+	LastName  *string
+	ClassID   *int64
+	ID        int64
+}
+
+type UpdateStudentRow struct {
+	ID        int64
+	FirstName string
+	LastName  string
+	Login     string
+	ClassID   int64
+}
+
+func (q *Queries) UpdateStudent(ctx context.Context, arg UpdateStudentParams) (UpdateStudentRow, error) {
+	row := q.db.QueryRow(ctx, updateStudent,
+		arg.FirstName,
+		arg.LastName,
+		arg.ClassID,
+		arg.ID,
+	)
+	var i UpdateStudentRow
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Login,
+		&i.ClassID,
+	)
+	return i, err
 }

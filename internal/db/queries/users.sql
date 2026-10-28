@@ -22,3 +22,15 @@ SELECT id, first_name, last_name, login, class_id::bigint AS class_id
 FROM users
 WHERE class_id = sqlc.arg(class_id)::bigint
 ORDER BY last_name, first_name, id;
+
+-- name: UpdateStudent :one
+UPDATE users
+SET first_name = coalesce(sqlc.narg(first_name), first_name),
+    last_name = coalesce(sqlc.narg(last_name), last_name),
+    class_id = coalesce(sqlc.narg(class_id), class_id)
+WHERE id = sqlc.arg(id) AND role = 'student'
+RETURNING id, first_name, last_name, login, class_id::bigint AS class_id;
+
+-- name: DeleteStudent :execrows
+DELETE FROM users
+WHERE id = $1 AND role = 'student';

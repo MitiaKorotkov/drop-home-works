@@ -22,6 +22,7 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrNoSession          = errors.New("no session")
 	ErrClassNotFound      = errors.New("class not found")
+	ErrStudentNotFound    = errors.New("student not found")
 
 	loginRe   = regexp.MustCompile("^[a-z0-9._-]{3,32}$")
 	dummyHash = sync.OnceValue(func() string { return password.Hash("Qwerty123!") })
@@ -40,6 +41,12 @@ type StudentInput struct {
 	FirstName string
 	LastName  string
 	ClassID   int64
+}
+
+type StudentUpdate struct {
+	FirstName *string
+	LastName  *string
+	ClassID   *int64
 }
 
 type User struct {
@@ -68,6 +75,19 @@ func NormalizeName(name string) (string, error) {
 	}
 
 	return name, nil
+}
+
+func normalizeOptionalName(name *string) (*string, error) {
+	if name == nil {
+		return nil, nil
+	}
+
+	n, err := NormalizeName(*name)
+	if err != nil {
+		return nil, err
+	}
+
+	return &n, nil
 }
 
 func ValidatePassword(password string) error {
@@ -215,4 +235,39 @@ func UserBySession(ctx context.Context, q *db.Queries, tokenHash []byte) (User, 
 		ClassID:   u.ClassID,
 		ClassName: u.ClassName,
 	}, nil
+}
+
+func UpdateStudent(ctx context.Context, q *db.Queries, id int64, in StudentUpdate) (db.UpdateStudentRow, error) {
+	if in.FirstName == nil && in.LastName == nil && in.ClassID == nil {
+		return db.UpdateStudentRow{}, fmt.Errorf("%w: nothing to updrte", ErrInvalidInput)
+	}
+
+	firstName, err := normalizeOptionalName(in.FirstName)
+	if err != nil {
+		return db.UpdateStudentRow{}, fmt.Errorf("first name: %w", err)
+	}
+	lastName, err := normalizeOptionalName(in.LastName)
+	if err != nil {
+		return db.UpdateStudentRow{}, fmt.Errorf("last name: %w", err)
+	}
+
+	row, err := q.UpdateStudent(ctx, db.UpdateStudentParams{
+		FirstName: firstName,
+		LastName:  lastName,
+		ClassID:   in.ClassID,
+		ID:        id,
+	})
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return db.UpdateStudentRow{}, ErrStudentNotFound
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" && pgErr.ConstraintName == "users_class_id_fkey" {
+		return db.UpdateStudentRow{}, ErrClassNotFound
+	}
+	if err != nil {
+		return db.UpdateStudentRow{}, fmt.Errorf("update student: %w", err)
+	}
+
+	return row, nil
 }

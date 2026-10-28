@@ -71,3 +71,43 @@ func (s *Server) ListClassStudents(ctx context.Context, request api.ListClassStu
 
 	return api.ListClassStudents200JSONResponse(res), nil
 }
+
+func (s *Server) UpdateStudent(ctx context.Context, request api.UpdateStudentRequestObject) (api.UpdateStudentResponseObject, error) {
+	row, err := account.UpdateStudent(ctx, s.q, request.StudentId, account.StudentUpdate{
+		FirstName: request.Body.FirstName,
+		LastName:  request.Body.LastName,
+		ClassID:   request.Body.ClassId,
+	})
+	switch {
+	case errors.Is(err, account.ErrInvalidInput):
+		return api.UpdateStudent400ApplicationProblemPlusJSONResponse{
+			BadRequestApplicationProblemPlusJSONResponse: badRequest(api.ErrorCodeValidationFailed, err.Error()),
+		}, nil
+	case errors.Is(err, account.ErrClassNotFound):
+		return api.UpdateStudent400ApplicationProblemPlusJSONResponse{
+			BadRequestApplicationProblemPlusJSONResponse: badRequest(api.ErrorCodeClassNotFound, ""),
+		}, nil
+	case errors.Is(err, account.ErrStudentNotFound):
+		return api.UpdateStudent404ApplicationProblemPlusJSONResponse{
+			NotFoundApplicationProblemPlusJSONResponse: notFound(api.ErrorCodeNotFound, ""),
+		}, nil
+	case err != nil:
+		return nil, err
+	}
+
+	return api.UpdateStudent200JSONResponse(newStudent(db.ListClassStudentsRow(row))), nil
+}
+
+func (s *Server) DeleteStudent(ctx context.Context, request api.DeleteStudentRequestObject) (api.DeleteStudentResponseObject, error) {
+	n, err := s.q.DeleteStudent(ctx, request.StudentId)
+	if err != nil {
+		return nil, fmt.Errorf("delete student: %w", err)
+	}
+	if n == 0 {
+		return api.DeleteStudent404ApplicationProblemPlusJSONResponse{
+			NotFoundApplicationProblemPlusJSONResponse: notFound(api.ErrorCodeNotFound, ""),
+		}, nil
+	}
+
+	return api.DeleteStudent204Response{}, nil
+}

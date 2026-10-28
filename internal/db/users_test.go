@@ -178,3 +178,108 @@ func TestListClassStudents(t *testing.T) {
 		}
 	})
 }
+
+// new(выражение) — Go 1.26+: указатель на копию значения, вместо помощника ptr.
+func TestUpdateStudent(t *testing.T) {
+	t.Run("only passed fields change", func(t *testing.T) {
+		u := newTestUsers(t)
+
+		got, err := u.q.UpdateStudent(t.Context(), db.UpdateStudentParams{ID: u.studentID, LastName: new("Сидоров")})
+		if err != nil {
+			t.Fatalf("UpdateStudent: %v", err)
+		}
+		want := db.UpdateStudentRow{ID: u.studentID, FirstName: "Пётр", LastName: "Сидоров", Login: "student", ClassID: u.class.ID}
+		if got != want {
+			t.Errorf("UpdateStudent(last name only) = %+v, want %+v", got, want)
+		}
+	})
+
+	t.Run("transfer to another class", func(t *testing.T) {
+		u := newTestUsers(t)
+		other := mustCreateClass(t, u.q, "8А")
+
+		got, err := u.q.UpdateStudent(t.Context(), db.UpdateStudentParams{ID: u.studentID, ClassID: &other.ID})
+		if err != nil {
+			t.Fatalf("UpdateStudent: %v", err)
+		}
+		want := db.UpdateStudentRow{ID: u.studentID, FirstName: "Пётр", LastName: "Петров", Login: "student", ClassID: other.ID}
+		if got != want {
+			t.Errorf("UpdateStudent(class only) = %+v, want %+v", got, want)
+		}
+	})
+
+	t.Run("not a student", func(t *testing.T) {
+		u := newTestUsers(t)
+
+		for _, tt := range []struct {
+			name string
+			id   int64
+		}{
+			{"unknown id", u.studentID + 1000},
+			{"teacher", u.teacherID},
+		} {
+			row, err := u.q.UpdateStudent(t.Context(), db.UpdateStudentParams{ID: tt.id, FirstName: new("Павел")})
+			if !errors.Is(err, pgx.ErrNoRows) {
+				t.Errorf("%s: UpdateStudent(id %d) = %+v, %v; want pgx.ErrNoRows", tt.name, tt.id, row, err)
+			}
+		}
+
+		teacher, err := u.q.GetUserByLogin(t.Context(), "teacher")
+		if err != nil {
+			t.Fatalf("GetUserByLogin(%q): %v", "teacher", err)
+		}
+		if teacher.FirstName != "Мария" {
+			t.Errorf("teacher's first name = %q, want %q: UpdateStudent must not touch the teacher", teacher.FirstName, "Мария")
+		}
+	})
+
+	t.Run("unknown class", func(t *testing.T) {
+		u := newTestUsers(t)
+
+		_, err := u.q.UpdateStudent(t.Context(), db.UpdateStudentParams{ID: u.studentID, ClassID: new(u.class.ID + 1000)})
+		requirePgError(t, err, "23503", "users_class_id_fkey")
+	})
+}
+
+func TestDeleteStudent(t *testing.T) {
+	t.Run("student", func(t *testing.T) {
+		u := newTestUsers(t)
+
+		n, err := u.q.DeleteStudent(t.Context(), u.studentID)
+		if err != nil {
+			t.Fatalf("DeleteStudent: %v", err)
+		}
+		if n != 1 {
+			t.Errorf("DeleteStudent deleted %d rows, want 1", n)
+		}
+		if _, err := u.q.GetUserByLogin(t.Context(), "student"); !errors.Is(err, pgx.ErrNoRows) {
+			t.Errorf("GetUserByLogin(%q) after delete: error = %v, want pgx.ErrNoRows", "student", err)
+		}
+	})
+
+	t.Run("not a student", func(t *testing.T) {
+		u := newTestUsers(t)
+
+		for _, tt := range []struct {
+			name string
+			id   int64
+		}{
+			{"unknown id", u.studentID + 1000},
+			{"teacher", u.teacherID},
+		} {
+			n, err := u.q.DeleteStudent(t.Context(), tt.id)
+			if err != nil {
+				t.Fatalf("%s: DeleteStudent(id %d): %v", tt.name, tt.id, err)
+			}
+			if n != 0 {
+				t.Errorf("%s: DeleteStudent(id %d) deleted %d rows, want 0", tt.name, tt.id, n)
+			}
+		}
+
+		for _, login := range []string{"teacher", "student"} {
+			if _, err := u.q.GetUserByLogin(t.Context(), login); err != nil {
+				t.Errorf("GetUserByLogin(%q): %v; want the user to stay", login, err)
+			}
+		}
+	})
+}
